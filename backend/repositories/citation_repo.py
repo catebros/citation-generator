@@ -1,5 +1,6 @@
 from sqlalchemy.orm import Session
 from models.citation import Citation
+from models.project_citation import ProjectCitation
 import json
 
 class CitationRepository:
@@ -28,3 +29,15 @@ class CitationRepository:
         self.db.commit()
         self.db.refresh(citation)
         return citation
+    
+    def get_by_id(self, citation_id: int) -> Citation | None:
+        return self.db.query(Citation).filter(Citation.id == citation_id).first()
+    
+    def get_all_by_project(self, project_id: int) -> list[Citation]:
+        return (
+            self.db.query(Citation)
+            .join(ProjectCitation, Citation.id == ProjectCitation.citation_id)
+            .filter(ProjectCitation.project_id == project_id)
+            .all()
+        )
+    
