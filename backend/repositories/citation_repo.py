@@ -38,6 +38,34 @@ class CitationRepository:
             self.db.query(Citation)
             .join(ProjectCitation, Citation.id == ProjectCitation.citation_id)
             .filter(ProjectCitation.project_id == project_id)
+            .order_by(Citation.year.desc())
             .all()
         )
     
+    def delete(self, citation_id: int) -> bool:
+        citation = self.get_by_id(citation_id)
+        if not citation:
+            return False
+
+        self.db.delete(citation)
+        self.db.commit()
+        return True
+
+    def update(self, citation_id: int, **kwargs) -> Citation | None:
+        citation = self.get_by_id(citation_id)
+        if not citation:
+            return None
+
+        for key, value in kwargs.items():
+            if value is None:
+                continue
+
+            if key == "authors" and isinstance(value, list):
+                value = json.dumps(value)
+
+            if hasattr(citation, key):
+                setattr(citation, key, value)
+
+        self.db.commit()
+        self.db.refresh(citation)
+        return citation  

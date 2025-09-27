@@ -32,6 +32,22 @@ def test_create_citation(db_session):
     assert new_citation.title == "AI Research"
     assert "John Smith" in new_citation.authors
 
+def test_create_citation_with_optional_fields(db_session):
+    repo = CitationRepository(db_session)
+
+    c = repo.create(
+        type="article",
+        title="Optional Fields Example",
+        authors=["Bob", "Charlie"],
+        year=2021,
+        journal="Science Journal",
+        doi="10.1234/example.doi"
+    )
+
+    assert "Bob" in c.authors
+    assert c.journal == "Science Journal"
+    assert c.doi == "10.1234/example.doi"    
+
 def test_get_citation_by_id(db_session):
     repo = CitationRepository(db_session)
 
@@ -58,7 +74,7 @@ def test_get_citation_by_id_not_found(db_session):
 
 def test_get_all_by_project(db_session):
     repo = CitationRepository(db_session)
-    
+
     project = Project(name="Thesis on AI")
     db_session.add(project)
     db_session.commit()
@@ -94,3 +110,71 @@ def test_get_all_by_project_empty(db_session):
     results = repo.get_all_by_project(999)
 
     assert results == []
+
+def test_get_all_by_project_nonexistent_project(db_session):
+    repo = CitationRepository(db_session)
+
+    results = repo.get_all_by_project(12345)
+    assert results == []    
+
+def test_delete_citation(db_session):
+    repo = CitationRepository(db_session)
+
+    citation = repo.create(
+        type="article",
+        title="Temp Citation",
+        authors=["Temp Author"],
+        year=2022
+    )
+
+    result = repo.delete(citation.id)
+    assert result is True
+
+    deleted = repo.get_by_id(citation.id)
+    assert deleted is None
+
+def test_delete_citation_not_found(db_session):
+    repo = CitationRepository(db_session)
+
+    result = repo.delete(999)
+
+    assert result is False
+
+def test_update_citation(db_session):
+    repo = CitationRepository(db_session)
+
+    citation = repo.create(
+        type="book",
+        title="Old Title",
+        authors=["Jane Doe"],
+        year=2000
+    )
+
+    updated = repo.update(citation.id, title="New Title", year=2021)
+
+    assert updated is not None
+    assert updated.title == "New Title"
+    assert updated.year == 2021
+
+def test_update_citation_title_and_year(db_session):
+    repo = CitationRepository(db_session)
+    c = repo.create(type="book", title="Old", authors=["X"], year=1990)
+
+    updated = repo.update(c.id, title="New", year=2000)
+    assert updated.title == "New"
+    assert updated.year == 2000
+
+def test_update_citation_authors(db_session):
+    repo = CitationRepository(db_session)
+    c = repo.create(type="article", title="Authored", authors=["Y"], year=2001)
+
+    updated = repo.update(c.id, authors=["Y", "Z"])
+    assert "Y" in updated.authors
+    assert "Z" in updated.authors
+    
+def test_update_citation_not_found(db_session):
+    repo = CitationRepository(db_session)
+
+    result = repo.update(999, title="Doesn't matter")
+
+    assert result is None
