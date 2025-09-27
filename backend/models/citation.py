@@ -1,5 +1,5 @@
 from sqlalchemy import Column, Integer, String, Text, DateTime
-from datetime import datetime
+from datetime import datetime, UTC
 from models.base import Base
 
 class Citation(Base):
@@ -20,4 +20,4 @@ class Citation(Base):
     access_date = Column(String, nullable=True)
     place = Column(String, nullable=True)
     edition = Column(String, nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(UTC))
