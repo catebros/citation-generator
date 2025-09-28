@@ -17,6 +17,7 @@ class ProjectService:
 
         return self.project_repo.create(name=name)
 
+
     def get_project(self, project_id: int):
         project = self.project_repo.get_by_id(project_id)
         if not project:
