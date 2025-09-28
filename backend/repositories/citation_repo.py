@@ -58,15 +58,6 @@ class CitationRepository:
     def get_by_id(self, citation_id: int) -> Citation | None:
         return self.db.query(Citation).filter(Citation.id == citation_id).first()
     
-    def get_all_by_project(self, project_id: int) -> list[Citation]:
-        return (
-            self.db.query(Citation)
-            .join(ProjectCitation, Citation.id == ProjectCitation.citation_id)
-            .filter(ProjectCitation.project_id == project_id)
-            .order_by(Citation.year.desc())
-            .all()
-        )
-    
     def delete(self, citation_id: int, project_id: int | None = None) -> bool:
         citation = self.get_by_id(citation_id)
         if not citation:

@@ -154,7 +154,7 @@ def test_delete_project_with_shared_citations(db_session):
     
     assert citation_repo.get_by_id(citation_id) is not None
     
-    project2_citations = citation_repo.get_all_by_project(project2.id)
+    project2_citations = project_repo.get_all_by_project(project2.id)
     assert len(project2_citations) == 1
     assert project2_citations[0].id == citation_id
 
@@ -198,7 +198,7 @@ def test_delete_project_mixed_citations(db_session):
     assert project_repo.get_by_id(project_to_delete.id) is None
     assert citation_repo.get_by_id(unique_id) is None
     assert citation_repo.get_by_id(shared_id) is not None
-    other_citations = citation_repo.get_all_by_project(other_project.id)
+    other_citations = project_repo.get_all_by_project(other_project.id)
     assert len(other_citations) == 1
     assert other_citations[0].id == shared_id
 
@@ -265,3 +265,45 @@ def test_delete_project_multiple_citations_performance(db_session):
         .count()
     )
     assert remaining_assocs == 0
+
+def test_get_all_by_project(db_session):
+    project_repo = ProjectRepository(db_session)
+    citation_repo = CitationRepository(db_session)
+
+    project = project_repo.create("Thesis on AI")
+
+    citation1 = citation_repo.create(
+        project_id=project.id,
+        type="book",
+        title="AI Foundations",
+        authors=["Alan Turing"],
+        year=1950
+    )
+    citation2 = citation_repo.create(
+        project_id=project.id,
+        type="article",
+        title="Neural Nets",
+        authors=["Geoff Hinton"],
+        year=1986
+    )
+
+    results = project_repo.get_all_by_project(project.id)
+
+    assert len(results) == 2
+    titles = [c.title for c in results]
+    assert "AI Foundations" in titles
+    assert "Neural Nets" in titles
+
+def test_get_all_by_project_empty(db_session):
+    project_repo = ProjectRepository(db_session)
+
+    project = project_repo.create("Empty Project")
+    results = project_repo.get_all_by_project(project.id)
+
+    assert results == []
+
+def test_get_all_by_project_nonexistent_project(db_session):
+    project_repo = ProjectRepository(db_session)
+
+    results = project_repo.get_all_by_project(12345)
+    assert results == []    

@@ -5,6 +5,7 @@ from models.base import Base
 from models.project import Project
 from models.project_citation import ProjectCitation
 from repositories.citation_repo import CitationRepository
+from repositories.project_repo import ProjectRepository
 
 @pytest.fixture(scope="function")
 def db_session():
@@ -46,49 +47,6 @@ def test_get_citation_by_id_not_found(db_session):
     fetched = repo.get_by_id(999)
 
     assert fetched is None
-
-def test_get_all_by_project(db_session):
-    repo = CitationRepository(db_session)
-
-    project = Project(name="Thesis on AI")
-    db_session.add(project)
-    db_session.commit()
-    db_session.refresh(project)
-
-    citation1 = repo.create(
-        project_id=project.id,
-        type="book",
-        title="AI Foundations",
-        authors=["Alan Turing"],
-        year=1950
-    )
-    citation2 = repo.create(
-        project_id=project.id,
-        type="article",
-        title="Neural Nets",
-        authors=["Geoff Hinton"],
-        year=1986
-    )
-
-    results = repo.get_all_by_project(project.id)
-
-    assert len(results) == 2
-    titles = [c.title for c in results]
-    assert "AI Foundations" in titles
-    assert "Neural Nets" in titles
-
-def test_get_all_by_project_empty(db_session):
-    repo = CitationRepository(db_session)
-
-    results = repo.get_all_by_project(999)
-
-    assert results == []
-
-def test_get_all_by_project_nonexistent_project(db_session):
-    repo = CitationRepository(db_session)
-
-    results = repo.get_all_by_project(12345)
-    assert results == []
 
 def test_delete_citation_single_project(db_session):
     repo = CitationRepository(db_session)
@@ -263,7 +221,7 @@ def test_update_citation_with_project_id_required(db_session):
 
 def test_update_citation_merges_with_existing_identical(db_session):
     repo = CitationRepository(db_session)
-    
+    project_repo = ProjectRepository(db_session)
     project = Project(name="Merge Project")
     db_session.add(project)
     db_session.commit()
@@ -298,13 +256,13 @@ def test_update_citation_merges_with_existing_identical(db_session):
     
     assert repo.get_by_id(citation_to_update.id) is None
     
-    all_citations = repo.get_all_by_project(project.id)
+    all_citations = project_repo.get_all_by_project(project.id)
     assert len(all_citations) == 1
 
 def test_update_citation_multiple_projects_creates_new(db_session):
     """Test que si una cita está en múltiples proyectos y se actualiza, se crea una nueva"""
     repo = CitationRepository(db_session)
-    
+    project_repo = ProjectRepository(db_session)
     project1 = Project(name="Project 1")
     project2 = Project(name="Project 2")
     db_session.add_all([project1, project2])
@@ -333,11 +291,11 @@ def test_update_citation_multiple_projects_creates_new(db_session):
     assert updated.id != original_citation.id
     assert updated.title == "Updated Title"
     
-    project1_citations = repo.get_all_by_project(project1.id)
+    project1_citations = project_repo.get_all_by_project(project1.id) 
     assert len(project1_citations) == 1
     assert project1_citations[0].title == "Updated Title"
-    
-    project2_citations = repo.get_all_by_project(project2.id)
+
+    project2_citations = project_repo.get_all_by_project(project2.id)  
     assert len(project2_citations) == 1
     assert project2_citations[0].title == "Shared Article"
 

@@ -36,7 +36,16 @@ class ProjectRepository:
                 
         self.db.commit()
         self.db.refresh(project)
-        return project         
+        return project   
+
+    def get_all_by_project(self, project_id: int) -> list[Citation]:
+        return (
+            self.db.query(Citation)
+            .join(ProjectCitation, Citation.id == ProjectCitation.citation_id)
+            .filter(ProjectCitation.project_id == project_id)
+            .order_by(Citation.year.desc())
+            .all()
+        )      
 
     def delete(self, project_id: int) -> bool:
         project = self.get_by_id(project_id)
