@@ -85,3 +85,6 @@ class ProjectRepository:
         self.db.delete(project)
         self.db.commit()
         return True
+    
+    def get_by_name(self, name: str):
+        return self.db.query(Project).filter(Project.name == name).first()
