@@ -90,34 +90,96 @@ def test_get_all_by_project_nonexistent_project(db_session):
     results = repo.get_all_by_project(12345)
     assert results == []
 
-def test_delete_citation(db_session):
+def test_delete_citation_single_project(db_session):
     repo = CitationRepository(db_session)
 
-    project = Project(name="Delete Project")
+    project = Project(name="Project A")
     db_session.add(project)
     db_session.commit()
     db_session.refresh(project)
 
     citation = repo.create(
         project_id=project.id,
-        type="article",
-        title="Temp Citation",
-        authors=["Temp Author"],
-        year=2022
+        type="book",
+        title="Book 1",
+        authors=["Author A"],
+        year=2000,
     )
 
-    result = repo.delete(citation.id)
-    assert result is True
+    ok = repo.delete(citation.id, project_id=project.id)
+    assert ok is True
+    assert repo.get_by_id(citation.id) is None
 
-    deleted = repo.get_by_id(citation.id)
-    assert deleted is None
+    assoc = (
+        db_session.query(ProjectCitation)
+        .filter(ProjectCitation.citation_id == citation.id)
+        .first()
+    )
+    assert assoc is None
 
-def test_delete_citation_not_found(db_session):
+def test_delete_citation_multiple_projects(db_session):
     repo = CitationRepository(db_session)
 
-    result = repo.delete(999)
+    project1 = Project(name="Project A")
+    project2 = Project(name="Project B")
+    db_session.add_all([project1, project2])
+    db_session.commit()
+    db_session.refresh(project1)
+    db_session.refresh(project2)
 
-    assert result is False
+    citation = repo.create(
+        project_id=project1.id,
+        type="article",
+        title="Shared Citation",
+        authors=["Author B"],
+        year=2010,
+    )
+
+    repo.create(
+        project_id=project2.id,
+        type="article",
+        title="Shared Citation",
+        authors=["Author B"],
+        year=2010,
+    )
+
+    ok = repo.delete(citation.id, project_id=project1.id)
+    assert ok is True
+
+    still_exists = repo.get_by_id(citation.id)
+    assert still_exists is not None
+
+    assoc1 = (
+        db_session.query(ProjectCitation)
+        .filter(ProjectCitation.project_id == project1.id, ProjectCitation.citation_id == citation.id)
+        .first()
+    )
+    assoc2 = (
+        db_session.query(ProjectCitation)
+        .filter(ProjectCitation.project_id == project2.id, ProjectCitation.citation_id == citation.id)
+        .first()
+    )
+    assert assoc1 is None
+    assert assoc2 is not None
+
+def test_delete_orphan_citation(db_session):
+    repo = CitationRepository(db_session)
+
+    citation = repo.create(
+        project_id=1,  
+        type="book",
+        title="Orphan Citation",
+        authors=["Author C"],
+        year=1999,
+    )
+
+    db_session.query(ProjectCitation).delete()  
+    db_session.commit()
+
+    ok = repo.delete(citation.id)
+    assert ok is True
+    assert repo.get_by_id(citation.id) is None
+
 
 def test_update_citation(db_session):
     repo = CitationRepository(db_session)

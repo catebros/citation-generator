@@ -12,28 +12,18 @@ class CitationRepository:
 
         existing = (
             self.db.query(Citation)
-            .filter(
-                Citation.title == title,
-                Citation.authors == authors_json,
-                Citation.year == year,
-            )
+            .filter(Citation.title == title, Citation.authors == authors_json, Citation.year == year)
             .first()
         )
 
         if existing:
             assoc = (
                 self.db.query(ProjectCitation)
-                .filter(
-                    ProjectCitation.project_id == project_id,
-                    ProjectCitation.citation_id == existing.id,
-                )
+                .filter(ProjectCitation.project_id == project_id, ProjectCitation.citation_id == existing.id)
                 .first()
             )
             if not assoc:
-                new_assoc = ProjectCitation(
-                    project_id=project_id,
-                    citation_id=existing.id
-                )
+                new_assoc = ProjectCitation(project_id=project_id, citation_id=existing.id)
                 self.db.add(new_assoc)
                 self.db.commit()
             return existing
@@ -77,11 +67,35 @@ class CitationRepository:
             .all()
         )
     
-    def delete(self, citation_id: int) -> bool:
+    def delete(self, citation_id: int, project_id: int | None = None) -> bool:
         citation = self.get_by_id(citation_id)
         if not citation:
             return False
 
+        associations = (
+            self.db.query(ProjectCitation)
+            .filter(ProjectCitation.citation_id == citation_id)
+            .all()
+        )
+
+        if not associations:
+            self.db.delete(citation)
+            self.db.commit()
+            return True
+
+        if len(associations) > 1 and project_id:
+            assoc = (
+                self.db.query(ProjectCitation)
+                .filter( ProjectCitation.citation_id == citation_id, ProjectCitation.project_id == project_id)
+                .first()
+            )
+            if assoc:
+                self.db.delete(assoc)
+                self.db.commit()
+            return True
+
+        for assoc in associations:
+            self.db.delete(assoc)
         self.db.delete(citation)
         self.db.commit()
         return True
