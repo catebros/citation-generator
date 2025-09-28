@@ -7,11 +7,41 @@ class CitationRepository:
     def __init__(self, db: Session):
         self.db = db
 
-    def create(self, type: str, title: str, authors: list[str], year: int, **kwargs) -> Citation:
+    def create(self, project_id: int, type: str, title: str, authors: list[str], year: int, **kwargs) -> Citation:
+        authors_json = json.dumps(authors)
+
+        existing = (
+            self.db.query(Citation)
+            .filter(
+                Citation.title == title,
+                Citation.authors == authors_json,
+                Citation.year == year,
+            )
+            .first()
+        )
+
+        if existing:
+            assoc = (
+                self.db.query(ProjectCitation)
+                .filter(
+                    ProjectCitation.project_id == project_id,
+                    ProjectCitation.citation_id == existing.id,
+                )
+                .first()
+            )
+            if not assoc:
+                new_assoc = ProjectCitation(
+                    project_id=project_id,
+                    citation_id=existing.id
+                )
+                self.db.add(new_assoc)
+                self.db.commit()
+            return existing
+
         citation = Citation(
             type=type,
             title=title,
-            authors=json.dumps(authors),
+            authors=authors_json,
             year=year,
             publisher=kwargs.get("publisher"),
             journal=kwargs.get("journal"),
@@ -28,6 +58,11 @@ class CitationRepository:
         self.db.add(citation)
         self.db.commit()
         self.db.refresh(citation)
+
+        assoc = ProjectCitation(project_id=project_id, citation_id=citation.id)
+        self.db.add(assoc)
+        self.db.commit()
+
         return citation
     
     def get_by_id(self, citation_id: int) -> Citation | None:
