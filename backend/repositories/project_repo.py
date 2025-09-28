@@ -33,10 +33,46 @@ class ProjectRepository:
             if hasattr(project, key):
                 setattr(project, key, value)
 
-                self.db.commit()
-        
+                
+        self.db.commit()
         self.db.refresh(project)
         return project         
 
     def delete(self, project_id: int) -> bool:
-        ...
+        project = self.get_by_id(project_id)
+
+        if not project:
+            return False
+
+        project_associations = (
+            self.db.query(ProjectCitation)
+            .filter(ProjectCitation.project_id == project_id)
+            .all()
+        )
+        
+        for assoc in project_associations:
+            citation_id = assoc.citation_id
+            
+            self.db.delete(assoc)
+            
+            remaining_assocs = (
+                self.db.query(ProjectCitation)
+                .filter(
+                    ProjectCitation.citation_id == citation_id,
+                    ProjectCitation.project_id != project_id 
+                )
+                .count()
+            )
+            
+            if remaining_assocs == 0:
+                citation = (
+                    self.db.query(Citation)
+                    .filter(Citation.id == citation_id)
+                    .first()
+                )
+                if citation:
+                    self.db.delete(citation)
+        
+        self.db.delete(project)
+        self.db.commit()
+        return True
