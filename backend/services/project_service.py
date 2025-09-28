@@ -27,6 +27,8 @@ class ProjectService:
         return self.project_repo.get_all()
 
     def update_project(self, project_id: int, data: dict):
+        # TODO: Check that the new input is not empty
+
         project = self.project_repo.update(project_id, **data)
         if not project:
             raise HTTPException(status_code=404, detail="Project not found")
@@ -42,7 +44,8 @@ class ProjectService:
         project = self.project_repo.get_by_id(project_id)
         if not project:
             raise HTTPException(status_code=404, detail="Project not found")
-        return self.citation_repo.get_all_by_project(project_id)
+        return self.project_repo.get_all_by_project(project_id)
 
     def generate_bibliography_by_project():
         ...    
+        # TODO: call the _get_MLA or _get_APA methods from citation and generate a bibliography for a specific project.

@@ -21,3 +21,5 @@ class Citation(Base):
     place = Column(String, nullable=True)
     edition = Column(String, nullable=True)
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(UTC))
+
+    # TODO create methods that generate the bibliography, given the type of source.

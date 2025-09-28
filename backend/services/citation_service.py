@@ -8,6 +8,8 @@ class CitationService:
         self.project_repo = ProjectRepository(db)
 
     def create_citation(self, project_id:int, data:dict):
+        #TODO: based on the type the required field change, adapt code. 
+
         project = self.project_repo.get_by_id(project_id)
 
         if not project:
@@ -21,7 +23,9 @@ class CitationService:
         if not isinstance(data["authors"], list):
             raise HTTPException(status_code=400, detail="Authors must be a list")
         
-        return self.citation_repo.create(project_id=project_id, **data)
+        citation_data = {k: v for k, v in data.items() if k != 'project_id'}
+        
+        return self.citation_repo.create(project_id=project_id, **citation_data)
     
     def get_citation(self, citation_id: int):
         citation = self.citation_repo.get_by_id(citation_id)
@@ -30,6 +34,12 @@ class CitationService:
         return citation
 
     def update_citation(self, citation_id: int, project_id: int, data: dict):
+        #TODO: based on the type the required field change, adapt code. 
+        #TODO: Check that the new input is not empty
+
+        if project_id is None:
+            raise HTTPException(status_code=400, detail="project_id is required for citation updates")
+        
         citation = self.citation_repo.get_by_id(citation_id)
         if not citation:
             raise HTTPException(status_code=404, detail="Citation not found")
