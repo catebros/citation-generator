@@ -7,6 +7,11 @@ from models.project import Project
 from services.project_service import ProjectService
 from repositories.project_repo import ProjectRepository
 from repositories.citation_repo import CitationRepository
+from services.validators.project_validator import (
+    validate_project_data, 
+    validate_unique_name,
+    _validate_name
+)
 
 @pytest.fixture(scope="function")
 def db_session():
@@ -134,3 +139,95 @@ def test_service_uses_repo_correctly(project_service, db_session):
     
     assert project_service.project_repo.db is db_session
     assert project_service.citation_repo.db is db_session
+    
+def test_validate_project_data_with_valid_name():
+    """Test validation passes for valid data with name."""
+    data = {"name": "Valid Project Name"}
+    assert validate_project_data(data, mode="create") is True
+
+def test_validate_project_data_update_mode():
+    """Test validation passes for update mode."""
+    data = {"name": "Updated Project Name"}
+    assert validate_project_data(data, mode="update") is True
+
+def test_name_validation_valid_name_passes():
+    """Test that valid name passes validation."""
+    _validate_name("Valid Project Name", "name")  # Should not raise
+
+def test_name_validation_non_string_raises_400():
+    """Test that non-string name raises HTTPException."""
+    with pytest.raises(HTTPException) as exc_info:
+        _validate_name(123, "name")
+    
+    assert exc_info.value.status_code == 400
+    assert "must be a non-empty string" in exc_info.value.detail
+
+def test_name_validation_empty_name_raises_400():
+    """Test that empty name raises HTTPException."""
+    empty_names = ["", "   ", "\t\n"]
+    
+    for name in empty_names:
+        with pytest.raises(HTTPException) as exc_info:
+            _validate_name(name, "name")
+        
+        assert exc_info.value.status_code == 400
+        assert "must be a non-empty string" in exc_info.value.detail
+
+def test_unique_name_validation_passes():
+    """Test that unique name passes validation."""
+    class MockRepo:
+        def get_by_name(self, name):
+            return None
+    
+    repo = MockRepo()
+    assert validate_unique_name("Unique Name", repo) is True
+
+def test_unique_name_validation_duplicate_raises_400():
+    """Test that duplicate name raises HTTPException."""
+    class MockProject:
+        def __init__(self, id, name):
+            self.id = id
+            self.name = name
+    
+    class MockRepo:
+        def get_by_name(self, name):
+            return MockProject(1, name)
+    
+    repo = MockRepo()
+    with pytest.raises(HTTPException) as exc_info:
+        validate_unique_name("Duplicate Name", repo)
+    
+    assert exc_info.value.status_code == 400
+    assert "already exists" in exc_info.value.detail
+
+def test_unique_name_validation_with_exclude_id_passes():
+    """Test that duplicate name passes when exclude_id matches."""
+    class MockProject:
+        def __init__(self, id, name):
+            self.id = id
+            self.name = name
+    
+    class MockRepo:
+        def get_by_name(self, name):
+            return MockProject(1, name)
+    
+    repo = MockRepo()
+    assert validate_unique_name("Duplicate Name", repo, exclude_id=1) is True
+
+def test_unique_name_validation_with_different_exclude_id_raises_400():
+    """Test that duplicate name raises exception when exclude_id is different."""
+    class MockProject:
+        def __init__(self, id, name):
+            self.id = id
+            self.name = name
+    
+    class MockRepo:
+        def get_by_name(self, name):
+            return MockProject(1, name)
+    
+    repo = MockRepo()
+    with pytest.raises(HTTPException) as exc_info:
+        validate_unique_name("Duplicate Name", repo, exclude_id=2)
+    
+    assert exc_info.value.status_code == 400
+    assert "already exists" in exc_info.value.detail

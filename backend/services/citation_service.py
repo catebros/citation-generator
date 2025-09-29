@@ -36,6 +36,8 @@ class CitationService:
         # Validate required parameters
         if project_id is None:
             raise HTTPException(status_code=400, detail="project_id is required for citation creation")
+        if data is None:
+            raise HTTPException(status_code=400, detail="data is required for citation creation")
         
         # Verify that the parent project exists before creating citation
         project = self.project_repo.get_by_id(project_id)
@@ -90,6 +92,8 @@ class CitationService:
             raise HTTPException(status_code=400, detail="citation_id is required")
         if project_id is None:
             raise HTTPException(status_code=400, detail="project_id is required for citation updates")
+        if data is None:
+            raise HTTPException(status_code=400, detail="data is required for citation updates")
         
         # Verify the project exists
         project = self.project_repo.get_by_id(project_id)

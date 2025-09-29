@@ -1,52 +1,182 @@
 from repositories.citation_repo import CitationRepository
 from repositories.project_repo import ProjectRepository
 from fastapi import HTTPException
+from services.validators.project_validator import validate_project_data, validate_unique_name
 
 class ProjectService:
+    """
+    Service class for managing project operations.
+    Handles business logic for creating, reading, updating, and deleting projects.
+    """
+    
     def __init__(self, db):
+        """
+        Initialize the project service with database repositories.
+        
+        Args:
+            db: Database session or connection object
+        """
         self.project_repo = ProjectRepository(db)
         self.citation_repo = CitationRepository(db)
 
     def create_project(self, data: dict):
+        """
+        Create a new project with validation.
+        
+        Args:
+            data (dict): Project data including name and other attributes
+            
+        Returns:
+            Project: The newly created project object
+            
+        Raises:
+            HTTPException: If data is missing, name is empty, or project name already exists
+        """
+        # Validate required parameters
+        if data is None:
+            raise HTTPException(status_code=400, detail="data is required for project creation")
+        
+        # Extract and validate project name
         name = data.get("name")
         if not name or name.strip() == "":
             raise HTTPException(status_code=400, detail="Project name cannot be empty")
+        
+        # Validate project data format
+        validate_project_data(data, mode="create")
+        
+        # Validate name uniqueness
+        validate_unique_name(name, self.project_repo)
 
-        if self.project_repo.get_by_name(name):
-            raise HTTPException(status_code=400, detail="Project with this name already exists")
-
-        return self.project_repo.create(name=name)
-
+        # Create and return the new project
+        return self.project_repo.create(name=name.strip())
 
     def get_project(self, project_id: int):
+        """
+        Retrieve a project by its unique identifier.
+        
+        Args:
+            project_id (int): Unique identifier of the project
+            
+        Returns:
+            Project: The project object if found
+            
+        Raises:
+            HTTPException: If project_id is None or project doesn't exist
+        """
+        # Validate required parameters
+        if project_id is None:
+            raise HTTPException(status_code=400, detail="project_id is required")
+        
+        # Retrieve project and verify it exists
         project = self.project_repo.get_by_id(project_id)
         if not project:
             raise HTTPException(status_code=404, detail="Project not found")
         return project
 
     def get_all_projects(self):
+        """
+        Retrieve all projects from the system.
+        
+        Returns:
+            list: List of all project objects
+        """
         return self.project_repo.get_all()
 
     def update_project(self, project_id: int, data: dict):
-        # TODO: Check that the new input is not empty
-
+        """
+        Update an existing project with validation.
+        
+        Args:
+            project_id (int): ID of the project to update
+            data (dict): Updated project data
+            
+        Returns:
+            Project: The updated project object
+            
+        Raises:
+            HTTPException: If project_id/data is None or project doesn't exist
+        """
+        # Validate required parameters
+        if project_id is None:
+            raise HTTPException(status_code=400, detail="project_id is required")
+        if data is None:
+            raise HTTPException(status_code=400, detail="data is required for project updates")
+        
+        # Validate project data format
+        validate_project_data(data, mode="update")
+        
+        # If name is being updated, validate it
+        if "name" in data:
+            name = data["name"]
+            if not name or name.strip() == "":
+                raise HTTPException(status_code=400, detail="Project name cannot be empty")
+            validate_unique_name(name, self.project_repo, exclude_id=project_id)
+            data["name"] = name.strip()  # Use trimmed version
+        
+        # Attempt to update the project
         project = self.project_repo.update(project_id, **data)
         if not project:
             raise HTTPException(status_code=404, detail="Project not found")
         return project
 
     def delete_project(self, project_id: int):
+        """
+        Delete a project from the system.
+        
+        Args:
+            project_id (int): ID of the project to delete
+            
+        Returns:
+            dict: Success message confirming deletion
+            
+        Raises:
+            HTTPException: If project_id is None or project doesn't exist
+        """
+        # Validate required parameters
+        if project_id is None:
+            raise HTTPException(status_code=400, detail="project_id is required")
+        
+        # Attempt to delete the project
         success = self.project_repo.delete(project_id)
         if not success:
             raise HTTPException(status_code=404, detail="Project not found")
         return {"message": "Project deleted"}
 
     def get_all_citations_by_project(self, project_id: int):
+        """
+        Retrieve all citations associated with a specific project.
+        
+        Args:
+            project_id (int): ID of the project to get citations for
+            
+        Returns:
+            list: List of citation objects belonging to the project
+            
+        Raises:
+            HTTPException: If project_id is None or project doesn't exist
+        """
+        # Validate required parameters
+        if project_id is None:
+            raise HTTPException(status_code=400, detail="project_id is required")
+        
+        # Verify the project exists before retrieving citations
         project = self.project_repo.get_by_id(project_id)
         if not project:
             raise HTTPException(status_code=404, detail="Project not found")
+        
+        # Return all citations for this project
         return self.project_repo.get_all_by_project(project_id)
 
     def generate_bibliography_by_project():
+        """
+        Generate a formatted bibliography for a specific project.
+        
+        TODO: Implement bibliography generation functionality.
+        This method should:
+        - Take project_id and format (MLA/APA) as parameters
+        - Retrieve all citations for the project
+        - Call the appropriate formatting methods from citation service
+        - Return formatted bibliography string
+        """
         ...    
         # TODO: call the _get_MLA or _get_APA methods from citation and generate a bibliography for a specific project.
