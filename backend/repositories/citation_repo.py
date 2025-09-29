@@ -1,6 +1,7 @@
 from sqlalchemy.orm import Session
 from models.citation import Citation
 from models.project_citation import ProjectCitation
+from config.citation_config import CITATION_TYPES, ALL_FIELDS
 import json
 
 class CitationRepository:
@@ -232,6 +233,14 @@ class CitationRepository:
         # Merge current data with updates, prioritizing new data
         final_data = {**current_data, **updated_data}
 
+        # Filter fields by citation type - set to None all fields not associated with the type
+        citation_type = final_data.get('type', citation.type)
+        if citation_type in CITATION_TYPES:
+            allowed_fields = CITATION_TYPES[citation_type]
+            for field in ALL_FIELDS:
+                if field not in allowed_fields:
+                    final_data[field] = None
+
         # Check if an identical citation already exists to avoid duplicates
         existing_citation = (
             self.db.query(Citation)
@@ -300,7 +309,8 @@ class CitationRepository:
         # If only one project uses this citation, update it in place
         if len(current_associations) == 1:
             # Safe to modify the citation directly since no other projects use it
-            for key, value in updated_data.items():
+            # Use final_data which has already been filtered by citation type
+            for key, value in final_data.items():
                 if hasattr(citation, key):
                     setattr(citation, key, value)
             

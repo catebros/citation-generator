@@ -2,13 +2,7 @@ from fastapi import HTTPException
 import re
 from datetime import datetime
 from typing import Dict, List, Any, Optional
-
-CITATION_TYPES = {
-    "book": ["type", "title", "authors", "year", "publisher", "place", "edition"],
-    "article": ["type", "title", "authors", "year", "journal", "volume", "issue", "pages", "doi"],
-    "website": ["type", "title", "authors", "year", "url", "access_date"],
-    "thesis_report": ["type", "title", "authors", "year", "publisher", "place", "doi"]
-}
+from config.citation_config import CITATION_TYPES
 
 def validate_citation_data(data: Dict[str, Any], mode: str = "create", current_type: Optional[str] = None, type_change: bool = False):
     """
