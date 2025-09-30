@@ -352,16 +352,11 @@ def test_update_citation_with_all_fields(db_session):
         title="Complete Article",
         authors=["Author A", "Author B"],
         year=2023,
-        publisher="Academic Press",
         journal="Science Journal",
         volume="42",
         issue="3",
         pages="123-145",
-        doi="10.1000/test.doi",
-        url="https://example.com",
-        access_date="2023-01-01",
-        place="New York",
-        edition="2nd"
+        doi="10.1000/test.doi"
     )
     
     assert updated.type == "article"
@@ -369,16 +364,18 @@ def test_update_citation_with_all_fields(db_session):
     assert "Author A" in updated.authors
     assert "Author B" in updated.authors
     assert updated.year == 2023
-    assert updated.publisher == "Academic Press"
+    # Fields valid for article type
     assert updated.journal == "Science Journal"
     assert updated.volume == "42"
-    assert updated.issue == "3"
+    assert updated.issue == "3" 
     assert updated.pages == "123-145"
     assert updated.doi == "10.1000/test.doi"
-    assert updated.url == "https://example.com"
-    assert updated.access_date == "2023-01-01"
-    assert updated.place == "New York"
-    assert updated.edition == "2nd"
+    # Fields invalid for article type should be None
+    assert updated.publisher is None
+    assert updated.url is None
+    assert updated.access_date is None
+    assert updated.place is None
+    assert updated.edition is None
 
 def test_update_citation_ignores_none_values(db_session):
     repo = CitationRepository(db_session)
