@@ -11,18 +11,17 @@ class Citation(Base):
     type = Column(String, nullable=False)  
     title = Column(String, nullable=False)
     authors = Column(Text, nullable=False)  
-    year = Column(Integer, nullable=False)
+    year = Column(Integer, nullable=True)
     publisher = Column(String, nullable=True)
     journal = Column(String, nullable=True)
-    volume = Column(String, nullable=True)
+    volume = Column(Integer, nullable=True)
     issue = Column(String, nullable=True)
     pages = Column(String, nullable=True)
     doi = Column(String, nullable=True)
     url = Column(String, nullable=True)
     access_date = Column(String, nullable=True)
     place = Column(String, nullable=True)
-    edition = Column(String, nullable=True)
-    thesis_type = Column(String, nullable=True)  # For thesis/report types
+    edition = Column(Integer, nullable=True)
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(UTC))
 
     def generate_citation(self, format_type: str = "apa") -> str:
@@ -44,24 +43,13 @@ class Citation(Base):
 
     def _normalize_author_name(self, author: str) -> str:
         """Convert author name to APA format with initials.
-        Examples: 'John Smith' -> 'Smith, J.', 'Smith, John' -> 'Smith, J.'
+        Examples: 'John Smith' -> 'Smith, J.'
         """
         author = author.strip()
         if not author:
             return ""
         
-        # If already in format "Last, F.", return as is
-        if ',' in author and len(author.split(',')) == 2:
-            last, first = author.split(',', 1)
-            first = first.strip()
-            # Check if first part is already initials
-            if len(first) <= 3 and '.' in first:
-                return author
-            # Convert first name to initials
-            initials = '. '.join([name[0].upper() for name in first.split() if name]) + '.'
-            return f"{last.strip()}, {initials}"
-        
-        # If in format "First Last", convert to "Last, F."
+        # format "First Last", convert to "Last, F."
         parts = author.split()
         if len(parts) >= 2:
             first_names = parts[:-1]
@@ -72,53 +60,25 @@ class Citation(Base):
         # Single name, return as is
         return author
 
-    def _normalize_edition(self, edition: str) -> str:
+    def _normalize_edition(self, edition: int) -> str:
         """Normalize edition format for APA style.
-        Examples: 'second edition' -> '2nd ed.', '3' -> '3rd ed.'
+        Examples: 2 -> '2nd ed.', 3 -> '3rd ed.'
         """
-        if not edition:
-            return ""
+        if not edition or edition == 1:
+            return ""  # Don't show first edition
         
-        edition = edition.lower().strip()
-        
-        # If already in correct format, return as is
-        if edition.endswith('ed.') and any(edition.startswith(num) for num in ['1st', '2nd', '3rd', '4th', '5th', '6th', '7th', '8th', '9th']):
-            return edition
-        
-        # Handle written-out numbers
-        number_mapping = {
-            'first': '1st', 'second': '2nd', 'third': '3rd', 'fourth': '4th',
-            'fifth': '5th', 'sixth': '6th', 'seventh': '7th', 'eighth': '8th',
-            'ninth': '9th', 'tenth': '10th'
-        }
-        
-        for word, num in number_mapping.items():
-            if word in edition:
-                return f"{num} ed."
-        
-        # Handle numeric input
-        num_match = re.search(r'\d+', edition)
-        if num_match:
-            num = int(num_match.group())
-            if num == 1:
-                return ""  # Don't show first edition
-            elif num == 2:
-                return "2nd ed."
-            elif num == 3:
-                return "3rd ed."
-            elif num in [21, 31, 41, 51, 61, 71, 81, 91]:
-                return f"{num}st ed."
-            elif num in [22, 32, 42, 52, 62, 72, 82, 92]:
-                return f"{num}nd ed."
-            elif num in [23, 33, 43, 53, 63, 73, 83, 93]:
-                return f"{num}rd ed."
-            else:
-                return f"{num}th ed."
-        
-        # If we can't parse it, return as is with "ed." if not present
-        if not edition.endswith('ed.'):
-            return f"{edition} ed."
-        return edition
+        if edition == 2:
+            return "2nd ed."
+        elif edition == 3:
+            return "3rd ed."
+        elif edition in [21, 31, 41, 51, 61, 71, 81, 91]:
+            return f"{edition}st ed."
+        elif edition in [22, 32, 42, 52, 62, 72, 82, 92]:
+            return f"{edition}nd ed."
+        elif edition in [23, 33, 43, 53, 63, 73, 83, 93]:
+            return f"{edition}rd ed."
+        else:
+            return f"{edition}th ed."
 
     def _get_authors_list(self) -> list:
         """Parse authors from JSON string to list."""
@@ -154,8 +114,8 @@ class Citation(Base):
             return self._generate_apa_article(formatted_authors)
         elif self.type == "website":
             return self._generate_apa_website(formatted_authors)
-        elif self.type == "thesis_report":
-            return self._generate_apa_thesis_report(formatted_authors)
+        elif self.type == "report":
+            return self._generate_apa_report(formatted_authors)
         else:
             return f"Unsupported citation type: {self.type}"
 
@@ -167,13 +127,17 @@ class Citation(Base):
             # Remove trailing period from authors if present
             authors_clean = authors.rstrip('.')
             citation_parts.append(authors_clean)
+        
+        # Handle year or n.d.
         if self.year:
             citation_parts.append(f"({self.year})")
+        else:
+            citation_parts.append("(n.d.)")
         
         # Title with edition if available
         if self.title:
             title_part = f"*{self.title}*"
-            if self.edition and self.edition != "1st":
+            if self.edition and self.edition != 1:
                 # Normalize edition format for APA
                 edition_text = self._normalize_edition(self.edition)
                 if edition_text:
@@ -182,11 +146,6 @@ class Citation(Base):
         
         if self.publisher:
             citation_parts.append(self.publisher)
-        
-        if self.doi:
-            citation_parts.append(f"https://doi.org/{self.doi}")
-            # No final period after DOI
-            return ". ".join(citation_parts)
         
         # Join with '. ' and add final period only if no DOI
         if citation_parts:
@@ -204,8 +163,13 @@ class Citation(Base):
             # Remove trailing period from authors if present
             authors_clean = authors.rstrip('.')
             citation_parts.append(authors_clean)
+        
+        # Handle year or n.d.
         if self.year:
             citation_parts.append(f"({self.year})")
+        else:
+            citation_parts.append("(n.d.)")
+            
         # Article titles are NOT in italics in APA
         if self.title:
             citation_parts.append(self.title)
@@ -261,6 +225,10 @@ class Citation(Base):
         if self.title:
             citation_parts.append(self.title)
         
+        # Add website name (publisher field) - Nombre del sitio
+        if self.publisher:
+            citation_parts.append(f"*{self.publisher}*")
+        
         # For websites, we use the URL directly without "Retrieved from"
         if self.url:
             citation_parts.append(self.url)
@@ -275,37 +243,37 @@ class Citation(Base):
             return result
         return ""
 
-    def _generate_apa_thesis_report(self, authors: str) -> str:
-        """Generate APA thesis/report citation."""
+    def _generate_apa_report(self, authors: str) -> str:
+        """Generate APA report citation."""
         citation_parts = []
         
         if authors:
             # Remove trailing period from authors if present
             authors_clean = authors.rstrip('.')
             citation_parts.append(authors_clean)
+        
+        # Handle year or n.d.
         if self.year:
             citation_parts.append(f"({self.year})")
+        else:
+            citation_parts.append("(n.d.)")
+            
         if self.title:
-            # Title with thesis type specification
-            title_part = f"*{self.title}*"
-            # Get thesis type from thesis_type field or default to "Doctoral dissertation"
-            thesis_type = getattr(self, 'thesis_type', None) or "Doctoral dissertation"
-            # Add institution if available
-            if self.publisher:
-                title_part += f" ({thesis_type}, {self.publisher})"
-            else:
-                title_part += f" ({thesis_type})"
+            # Title with report type specification
+            title_part = f"*{self.title}* (report)"
             citation_parts.append(title_part)
-        elif self.publisher:
-            # If no title but have publisher, add it separately
+        
+        # Add institution/organization (publisher)
+        if self.publisher:
             citation_parts.append(self.publisher)
         
-        if self.doi:
-            citation_parts.append(f"https://doi.org/{self.doi}")
-            # No final period after DOI
+        # Add URL if available (reports don't have DOI)
+        if self.url:
+            citation_parts.append(self.url)
+            # No final period after URL
             return ". ".join(citation_parts)
         
-        # Join with '. ' and add final period only if no DOI
+        # Join with '. ' and add final period only if no URL
         if citation_parts:
             result = ". ".join(citation_parts)
             if not result.endswith('.'):

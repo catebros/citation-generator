@@ -19,11 +19,11 @@ def sample_book_citation(db_session):
     citation = Citation(
         type="book",
         title="The Great Book",
-        authors=json.dumps(["Smith, J.", "Doe, A."]),
+        authors=json.dumps(["John Smith", "Alice Doe"]),
         year=2023,
         publisher="Academic Press",
         place="New York",
-        edition="2nd"
+        edition=2
     )
     db_session.add(citation)
     db_session.commit()
@@ -35,10 +35,10 @@ def sample_article_citation(db_session):
     citation = Citation(
         type="article",
         title="Research Findings",
-        authors=json.dumps(["Johnson, M.", "Brown, K.", "Wilson, R."]),
+        authors=json.dumps(["Mary Johnson", "Kevin Brown", "Robert Wilson"]),
         year=2022,
         journal="Science Journal",
-        volume="45",
+        volume=45,
         issue="3",
         pages="123-145",
         doi="10.1234/science.2022"
@@ -55,6 +55,7 @@ def sample_website_citation(db_session):
         title="Online Resource",
         authors=json.dumps(["Web Author"]),
         year=2024,
+        publisher="Example Website",
         url="https://example.com/resource",
         access_date="2024-01-15"
     )
@@ -66,13 +67,12 @@ def sample_website_citation(db_session):
 @pytest.fixture
 def sample_thesis_citation(db_session):
     citation = Citation(
-        type="thesis_report",
-        title="Doctoral Dissertation",
-        authors=json.dumps(["Graduate, S."]),
+        type="report",
+        title="Annual Report on Climate Change",
+        authors=json.dumps(["Sam Graduate"]),
         year=2021,
-        publisher="University Press",
-        place="Boston",
-        doi="10.5678/thesis.2021"
+        publisher="Environmental Research Institute",
+        url="https://example.org/climate-report-2021"
     )
     db_session.add(citation)
     db_session.commit()
@@ -100,7 +100,7 @@ def test_generate_citation_unsupported_format_raises_error(sample_book_citation)
 def test_get_authors_list_valid_json(sample_article_citation):
     """Test parsing valid JSON authors."""
     authors = sample_article_citation._get_authors_list()
-    expected = ["Johnson, M.", "Brown, K.", "Wilson, R."]
+    expected = ["Mary Johnson", "Kevin Brown", "Robert Wilson"]
     assert authors == expected
 
 def test_get_authors_list_empty_authors(db_session):
@@ -142,19 +142,19 @@ def test_get_authors_list_invalid_json_fallback(db_session):
 def test_format_authors_apa_single_author():
     """Test APA formatting for single author."""
     citation = Citation(type="book", title="Test", authors="", year=2023)
-    result = citation._format_authors_apa(["Smith, John"])
+    result = citation._format_authors_apa(["John Smith"])
     assert result == "Smith, J."
 
 def test_format_authors_apa_two_authors():
     """Test APA formatting for two authors."""
     citation = Citation(type="book", title="Test", authors="", year=2023)
-    result = citation._format_authors_apa(["Smith, John", "Doe, Jane"])
+    result = citation._format_authors_apa(["John Smith", "Jane Doe"])
     assert result == "Smith, J. & Doe, J."
 
 def test_format_authors_apa_three_or_more_authors():
     """Test APA formatting for three or more authors."""
     citation = Citation(type="book", title="Test", authors="", year=2023)
-    result = citation._format_authors_apa(["Smith, John", "Doe, Jane", "Brown, Bob"])
+    result = citation._format_authors_apa(["John Smith", "Jane Doe", "Bob Brown"])
     assert result == "Smith, J., Doe, J., & Brown, B."
 
 def test_format_authors_apa_empty_list():
@@ -174,7 +174,7 @@ def test_generate_apa_book_minimal_data(db_session):
     citation = Citation(
         type="book",
         title="Simple Book",
-        authors=json.dumps(["Author, A."]),
+        authors=json.dumps(["A Author"]),
         year=2023,
         publisher="Publisher"
     )
@@ -187,10 +187,10 @@ def test_generate_apa_book_first_edition_ignored(db_session):
     citation = Citation(
         type="book",
         title="First Edition Book",
-        authors=json.dumps(["Author, A."]),
+        authors=json.dumps(["A Author"]),
         year=2023,
         publisher="Publisher",
-        edition="1st"
+        edition=1
     )
     result = citation.generate_citation("apa")
     expected = "Author, A. (2023). *First Edition Book*. Publisher."
@@ -207,10 +207,10 @@ def test_generate_apa_article_without_doi(db_session):
     citation = Citation(
         type="article",
         title="Article Without DOI",
-        authors=json.dumps(["Author, A."]),
+        authors=json.dumps(["A Author"]),
         year=2023,
         journal="Test Journal",
-        volume="1",
+        volume=1,
         issue="2",
         pages="10-20"
     )
@@ -223,10 +223,10 @@ def test_generate_apa_article_without_issue(db_session):
     citation = Citation(
         type="article",
         title="Article Without Issue",
-        authors=json.dumps(["Author, A."]),
+        authors=json.dumps(["A Author"]),
         year=2023,
         journal="Test Journal",
-        volume="1",
+        volume=1,
         pages="10-20"
     )
     result = citation.generate_citation("apa")
@@ -236,7 +236,7 @@ def test_generate_apa_article_without_issue(db_session):
 def test_generate_apa_website_complete_data(sample_website_citation):
     """Test APA website citation with all fields."""
     result = sample_website_citation.generate_citation("apa")
-    expected = "Author, W. (2024). Online Resource. https://example.com/resource"
+    expected = "Author, W. (2024). Online Resource. *Example Website*. https://example.com/resource"
     assert result == expected
 
 def test_generate_apa_website_minimal_data(db_session):
@@ -246,29 +246,30 @@ def test_generate_apa_website_minimal_data(db_session):
         title="Website Title",
         authors=json.dumps(["Web Author"]),
         year=2024,
+        publisher="Sample Site",
         url="https://example.com"
     )
     result = citation.generate_citation("apa")
-    expected = "Author, W. (2024). Website Title. https://example.com"
+    expected = "Author, W. (2024). Website Title. *Sample Site*. https://example.com"
     assert result == expected
 
-def test_generate_apa_thesis_report_complete_data(sample_thesis_citation):
-    """Test APA thesis/report citation with all fields."""
+def test_generate_apa_report_complete_data(sample_thesis_citation):
+    """Test APA report citation with all fields."""
     result = sample_thesis_citation.generate_citation("apa")
-    expected = "Graduate, S. (2021). *Doctoral Dissertation* (Doctoral dissertation, University Press). https://doi.org/10.5678/thesis.2021"
+    expected = "Graduate, S. (2021). *Annual Report on Climate Change* (report). Environmental Research Institute. https://example.org/climate-report-2021"
     assert result == expected
 
-def test_generate_apa_thesis_report_without_doi(db_session):
-    """Test APA thesis/report citation without DOI."""
+def test_generate_apa_report_without_url(db_session):
+    """Test APA report citation without URL."""
     citation = Citation(
-        type="thesis_report",
-        title="Master Thesis",
-        authors=json.dumps(["Student, M."]),
+        type="report",
+        title="Technical Report",
+        authors=json.dumps(["M Student"]),
         year=2023,
-        publisher="University Press"
+        publisher="Tech Research Corp"
     )
     result = citation.generate_citation("apa")
-    expected = "Student, M. (2023). *Master Thesis* (Doctoral dissertation, University Press)."
+    expected = "Student, M. (2023). *Technical Report* (report). Tech Research Corp."
     assert result == expected
 
 def test_generate_apa_citation_missing_fields_handled_gracefully(db_session):
@@ -281,7 +282,7 @@ def test_generate_apa_citation_missing_fields_handled_gracefully(db_session):
         publisher=None
     )
     result = citation.generate_citation("apa")
-    expected = "*Incomplete Book*."
+    expected = "(n.d.). *Incomplete Book*."
     assert result == expected
 
 def test_generate_apa_citation_unsupported_type(db_session):
@@ -314,7 +315,7 @@ def test_generate_apa_article_no_volume_or_pages(db_session):
     citation = Citation(
         type="article",
         title="Basic Article",
-        authors=json.dumps(["Author, A."]),
+        authors=json.dumps(["A Author"]),
         year=2023,
         journal="Simple Journal"
     )
@@ -327,11 +328,12 @@ def test_generate_apa_website_no_url(db_session):
     citation = Citation(
         type="website",
         title="Website Without URL",
-        authors=json.dumps(["Author, A."]),
-        year=2023
+        authors=json.dumps(["A Author"]),
+        year=2023,
+        publisher="Test Site"
     )
     result = citation.generate_citation("apa")
-    expected = "Author, A. (2023). Website Without URL."
+    expected = "Author, A. (2023). Website Without URL. *Test Site*."
     assert result == expected
 
 def test_citation_model_integration_with_database(db_session):

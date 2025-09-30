@@ -1,7 +1,7 @@
 from sqlalchemy.orm import Session
 from models.citation import Citation
 from models.project_citation import ProjectCitation
-from config.citation_config import CITATION_TYPES, ALL_FIELDS
+from config.citation_config import REQUIRED_FOR_CITATION_TYPES, ALL_FIELDS
 import json
 
 class CitationRepository:
@@ -231,12 +231,16 @@ class CitationRepository:
         }
         
         # Merge current data with updates, prioritizing new data
-        final_data = {**current_data, **updated_data}
+        # Special handling for year: if explicitly set to None in updates, use None
+        final_data = {**current_data}
+        for key, value in updated_data.items():
+            final_data[key] = value  # This ensures None values in updates take priority
 
         # Filter fields by citation type - set to None all fields not associated with the type
+        # Year is now required and handled normally in the allowed fields
         citation_type = final_data.get('type', citation.type)
-        if citation_type in CITATION_TYPES:
-            allowed_fields = CITATION_TYPES[citation_type]
+        if citation_type in REQUIRED_FOR_CITATION_TYPES:
+            allowed_fields = REQUIRED_FOR_CITATION_TYPES[citation_type]  # year is included as required field
             for field in ALL_FIELDS:
                 if field not in allowed_fields:
                     final_data[field] = None

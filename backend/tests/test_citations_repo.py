@@ -353,7 +353,7 @@ def test_update_citation_with_all_fields(db_session):
         authors=["Author A", "Author B"],
         year=2023,
         journal="Science Journal",
-        volume="42",
+        volume=42,
         issue="3",
         pages="123-145",
         doi="10.1000/test.doi"
@@ -366,7 +366,7 @@ def test_update_citation_with_all_fields(db_session):
     assert updated.year == 2023
     # Fields valid for article type
     assert updated.journal == "Science Journal"
-    assert updated.volume == "42"
+    assert updated.volume == 42
     assert updated.issue == "3" 
     assert updated.pages == "123-145"
     assert updated.doi == "10.1000/test.doi"

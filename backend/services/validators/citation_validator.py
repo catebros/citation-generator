@@ -2,7 +2,7 @@ from fastapi import HTTPException
 import re
 from datetime import datetime
 from typing import Dict, List, Any, Optional
-from config.citation_config import CITATION_TYPES
+from config.citation_config import REQUIRED_FOR_CITATION_TYPES
 
 def validate_citation_data(data: Dict[str, Any], mode: str = "create", current_type: Optional[str] = None, type_change: bool = False):
     """
@@ -34,11 +34,11 @@ def _get_citation_type(data: Dict[str, Any], current_type: Optional[str]) -> str
 
 def _validate_citation_type(citation_type: str):
     """Validate that the citation type is supported."""
-    if citation_type not in CITATION_TYPES:
+    if citation_type not in REQUIRED_FOR_CITATION_TYPES:
         raise HTTPException(
             status_code=400, 
             detail=f"Unsupported citation type: {citation_type}. "
-                   f"Supported types: {', '.join(CITATION_TYPES.keys())}"
+                   f"Supported types: {', '.join(REQUIRED_FOR_CITATION_TYPES.keys())}"
         )
 
 def _validate_fields_by_mode_and_type(data: Dict[str, Any], citation_type: str, 
@@ -54,13 +54,13 @@ def _validate_fields_by_mode_and_type(data: Dict[str, Any], citation_type: str,
 def _validate_create_mode_fields(data: Dict[str, Any], citation_type: str):
     """
     Validate fields for create mode - all required fields must be present and only fields 
-    from this type (plus optional DOI/URL for applicable types) are allowed.
+    from this type are allowed.
     """
-    required_fields = CITATION_TYPES[citation_type]
-    valid_fields = set(required_fields)
+    required_fields = REQUIRED_FOR_CITATION_TYPES[citation_type]
+    valid_fields = set(required_fields)  # year is now required, not optional
 
-    # Check for missing required fields
-    missing = [field for field in required_fields if not data.get(field)]
+    # Check for missing required fields (only check if keys are present)
+    missing = [field for field in required_fields if field not in data]
     if missing:
         raise HTTPException(
             status_code=400,
@@ -69,6 +69,7 @@ def _validate_create_mode_fields(data: Dict[str, Any], citation_type: str):
     
     # Check for invalid fields (fields not allowed for this type)
     provided_fields = set(data.keys())
+    invalid_fields = provided_fields - valid_fields
     invalid_fields = provided_fields - valid_fields
     
     if invalid_fields:
@@ -83,16 +84,16 @@ def _validate_update_with_type_change_fields(data: Dict[str, Any], new_type: str
     Validate fields when changing citation type - must provide fields that are required 
     in new type but not in previous type. Can also provide other fields from new type.
     """
-    new_required_fields = set(CITATION_TYPES[new_type])
-    previous_required_fields = set(CITATION_TYPES.get(previous_type, []))
+    new_required_fields = set(REQUIRED_FOR_CITATION_TYPES[new_type])
+    previous_required_fields = set(REQUIRED_FOR_CITATION_TYPES.get(previous_type, []))
     
-    # Get valid fields for the new type
+    # Get valid fields for the new type (year is now required, not optional)
     valid_fields = set(new_required_fields)
     
     # Check for invalid fields (fields not allowed for new type)
     provided_fields = set(data.keys())
     invalid_fields = provided_fields - valid_fields
-    
+
     if invalid_fields:
         raise HTTPException(
             status_code=400,
@@ -103,8 +104,9 @@ def _validate_update_with_type_change_fields(data: Dict[str, Any], new_type: str
     # Find fields that are required in the new type but not in the previous type
     additional_required_fields = new_required_fields - previous_required_fields
     
-    # Check if these additional fields are present in the data
-    missing = [field for field in additional_required_fields if not data.get(field) and field != "type"]
+    # Check if these additional fields are present in the data (only check keys)
+    # Exclude 'type' since it's handled separately
+    missing = [field for field in additional_required_fields if field not in data and field != "type"]
     
     if missing:
         raise HTTPException(
@@ -117,7 +119,7 @@ def _validate_update_same_type_fields(data: Dict[str, Any], citation_type: str):
     Validate fields for update mode with same type - all provided fields must be 
     valid for the citation type.
     """
-    valid_fields = set(CITATION_TYPES[citation_type])
+    valid_fields = set(REQUIRED_FOR_CITATION_TYPES[citation_type])  # year is now required, not optional
     
     # Check for invalid fields
     provided_fields = set(data.keys())
@@ -140,16 +142,16 @@ def _validate_field_formats(data: Dict[str, Any]):
         "doi": _validate_doi,
         "pages": _validate_pages,
         "access_date": _validate_access_date,
-        "volume": _validate_volume_issue_edition,
+        "volume": _validate_volume,
         "issue": _validate_volume_issue_edition,
-        "edition": _validate_volume_issue_edition,
+        "edition": _validate_edition,
         "publisher": _validate_non_empty_string,
         "place": _validate_non_empty_string,
         "journal": _validate_non_empty_string,
     }
     
     for field, value in data.items():
-        if field in field_validators and value:
+        if field in field_validators:
             field_validators[field](value, field)
 
 def _validate_authors(authors: Any, field_name: str):
@@ -163,14 +165,18 @@ def _validate_authors(authors: Any, field_name: str):
             raise HTTPException(status_code=400, detail="All authors must be non-empty strings")
 
 def _validate_year(year: Any, field_name: str):
-    """Validate year field - must be an integer between 1000 and current year."""
+    """Validate year field - must be None or a non-negative integer not exceeding current year."""
+    if year is None:
+        return  # None is valid
+    
     if not isinstance(year, int):
-        raise HTTPException(status_code=400, detail="Year must be an integer")
+        raise HTTPException(status_code=400, detail="Year must be an integer or null")
+    
     current_year = datetime.now().year
     if year < 0 or year > current_year:
         raise HTTPException(
             status_code=400, 
-            detail=f"Year must be between 1000 and {current_year}"
+            detail=f"Year must be a non-negative integer not exceeding {current_year}"
         )
 
 def _validate_title(title: Any, field_name: str):
@@ -191,7 +197,6 @@ def _validate_doi(doi: Any, field_name: str):
         raise HTTPException(status_code=400, detail="DOI must be a string")
     if not _is_valid_doi(doi):
         raise HTTPException(status_code=400, detail="Invalid DOI format (expected: 10.xxxx/xxxx)")
-
 
 def _validate_pages(pages: Any, field_name: str):
     """Validate pages field - must be in 'start-end' format or multiple ranges."""
@@ -214,6 +219,20 @@ def _validate_volume_issue_edition(value: Any, field_name: str):
     """Validate volume, issue, or edition fields - must be string or number."""
     if not isinstance(value, (str, int)):
         raise HTTPException(status_code=400, detail=f"{field_name.capitalize()} must be a string or number")
+
+def _validate_edition(value: Any, field_name: str):
+    """Validate edition field - must be a positive integer."""
+    if not isinstance(value, int):
+        raise HTTPException(status_code=400, detail="Edition must be a positive integer")
+    if value <= 0:
+        raise HTTPException(status_code=400, detail="Edition must be a positive integer")
+
+def _validate_volume(value: Any, field_name: str):
+    """Validate volume field - must be a positive integer."""
+    if not isinstance(value, int):
+        raise HTTPException(status_code=400, detail="Volume must be a positive integer")
+    if value <= 0:
+        raise HTTPException(status_code=400, detail="Volume must be a positive integer")
 
 def _validate_non_empty_string(value: Any, field_name: str):
     """Validate string fields that cannot be empty."""
