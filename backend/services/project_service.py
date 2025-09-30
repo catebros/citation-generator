@@ -167,16 +167,61 @@ class ProjectService:
         # Return all citations for this project
         return self.project_repo.get_all_by_project(project_id)
 
-    def generate_bibliography_by_project():
+    def generate_bibliography_by_project(self, project_id: int, format_type: str = "apa"):
         """
         Generate a formatted bibliography for a specific project.
-        
-        TODO: Implement bibliography generation functionality.
-        This method should:
-        - Take project_id and format (MLA/APA) as parameters
-        - Retrieve all citations for the project
-        - Call the appropriate formatting methods from citation service
-        - Return formatted bibliography string
+       
+        Args:
+            project_id (int): ID of the project to generate bibliography for
+            format_type (str): Citation format (apa, mla)
+           
+        Returns:
+            dict: Dictionary with bibliography data including formatted citations
+           
+        Raises:
+            HTTPException: If project_id is None or project doesn't exist
         """
-        ...    
-        # TODO: call the _get_MLA or _get_APA methods from citation and generate a bibliography for a specific project.
+        # Validate required parameters
+        if project_id is None:
+            raise HTTPException(status_code=400, detail="project_id is required")
+       
+        # Verify the project exists
+        project = self.project_repo.get_by_id(project_id)
+        if not project:
+            raise HTTPException(status_code=404, detail="Project not found")
+       
+        # Get all citations for the project
+        citations = self.project_repo.get_all_by_project(project_id)
+       
+        if not citations:
+            return {
+                "project_id": project_id,
+                "format_type": format_type.lower(),
+                "bibliography": [],
+                "citation_count": 0
+            }
+       
+        # Import citation service to format citations
+        from services.citation_service import CitationService
+        citation_service = CitationService(self.project_repo.db)
+       
+        # Format each citation
+        formatted_citations = []
+        for citation in citations:
+            try:
+                formatted = citation_service.format_citation(citation, format_type)
+                formatted_citations.append(formatted)
+            except ValueError as e:
+                # If format is not supported, default to APA
+                if "Unsupported format" in str(e):
+                    formatted = citation_service.format_citation(citation, "apa")
+                    formatted_citations.append(formatted)
+                else:
+                    raise HTTPException(status_code=400, detail=str(e))
+       
+        return {
+            "project_id": project_id,
+            "format_type": format_type.lower(),
+            "bibliography": formatted_citations,
+            "citation_count": len(formatted_citations)
+        }
