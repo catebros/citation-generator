@@ -155,3 +155,30 @@ class CitationService:
         if not success:
             raise HTTPException(status_code=404, detail="Citation not found")
         return {"message": "Citation deleted"}
+
+    def format_citation(self, citation, format_type: str = "apa") -> str:
+        """
+        Generate formatted citation based on citation type and format.
+        
+        Args:
+            citation: Citation object to format
+            format_type: Citation format (currently only "apa" supported)
+            
+        Returns:
+            str: Formatted citation string
+            
+        Raises:
+            ValueError: If format_type is not supported
+        """
+        format_type = format_type.lower()
+        
+        if format_type == "apa":
+            from services.formatters.apa_formatter import APAFormatter
+            formatter = APAFormatter(citation)
+            return formatter.format_citation()
+        elif format_type == "mla":
+            from services.formatters.mla_formatter import MLAFormatter
+            formatter = MLAFormatter(citation)
+            return formatter.format_citation()
+        else:
+            raise ValueError(f"Unsupported format: {format_type}. Supported formats: 'apa', 'mla'")

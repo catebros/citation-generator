@@ -4,6 +4,12 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from models.base import Base
 from models.citation import Citation
+from services.citation_service import CitationService
+
+@pytest.fixture
+def citation_service():
+    """Fixture to provide CitationService instance for testing."""
+    return CitationService(db=None)
 
 @pytest.fixture(scope="function")
 def db_session():
@@ -79,27 +85,35 @@ def sample_thesis_citation(db_session):
     db_session.refresh(citation)
     return citation
 
-def test_generate_citation_default_apa_format(sample_book_citation):
+def test_generate_citation_default_apa_format(sample_book_citation, citation_service):
     """Test that generate_citation() defaults to APA format."""
-    result = sample_book_citation.generate_citation()
-    expected = "Smith, J. & Doe, A. (2023). *The Great Book* (2nd ed.). Academic Press."
+    result = citation_service.format_citation(sample_book_citation)
+    expected = "Smith, J., & Doe, A. (2023). *The Great Book* (2nd ed.). Academic Press."
     assert result == expected
 
-def test_generate_citation_explicit_apa_format(sample_book_citation):
+def test_generate_citation_explicit_apa_format(sample_book_citation, citation_service):
     """Test that generate_citation('apa') works correctly."""
-    result = sample_book_citation.generate_citation("apa")
-    expected = "Smith, J. & Doe, A. (2023). *The Great Book* (2nd ed.). Academic Press."
+    result = citation_service.format_citation(sample_book_citation, "apa")
+    expected = "Smith, J., & Doe, A. (2023). *The Great Book* (2nd ed.). Academic Press."
     assert result == expected
 
-def test_generate_citation_unsupported_format_raises_error(sample_book_citation):
+def test_generate_citation_unsupported_format_raises_error(sample_book_citation, citation_service):
     """Test that unsupported formats raise ValueError."""
     with pytest.raises(ValueError) as exc_info:
-        sample_book_citation.generate_citation("mla")
-    assert "Unsupported format: mla" in str(exc_info.value)
+        citation_service.format_citation(sample_book_citation, "chicago")
+    assert "Unsupported format: chicago" in str(exc_info.value)
+
+def test_generate_citation_mla_format(sample_book_citation, citation_service):
+    """Test that generate_citation('mla') works correctly."""
+    result = citation_service.format_citation(sample_book_citation, "mla")
+    expected = "Smith, John, and Alice Doe. *The Great Book*. 2nd ed., Academic Press, 2023."
+    assert result == expected
 
 def test_get_authors_list_valid_json(sample_article_citation):
     """Test parsing valid JSON authors."""
-    authors = sample_article_citation._get_authors_list()
+    from services.formatters.apa_formatter import APAFormatter
+    formatter = APAFormatter(sample_article_citation)
+    authors = formatter.get_authors_list()
     expected = ["Mary Johnson", "Kevin Brown", "Robert Wilson"]
     assert authors == expected
 
@@ -112,7 +126,9 @@ def test_get_authors_list_empty_authors(db_session):
         year=2023,
         publisher="Test Publisher"
     )
-    authors = citation._get_authors_list()
+    from services.formatters.apa_formatter import APAFormatter
+    formatter = APAFormatter(citation)
+    authors = formatter.get_authors_list()
     assert authors == []
 
 def test_get_authors_list_none_authors(db_session):
@@ -124,7 +140,9 @@ def test_get_authors_list_none_authors(db_session):
         year=2023,
         publisher="Test Publisher"
     )
-    authors = citation._get_authors_list()
+    from services.formatters.apa_formatter import APAFormatter
+    formatter = APAFormatter(citation)
+    authors = formatter.get_authors_list()
     assert authors == []
 
 def test_get_authors_list_invalid_json_fallback(db_session):
@@ -136,40 +154,50 @@ def test_get_authors_list_invalid_json_fallback(db_session):
         year=2023,
         publisher="Test Publisher"
     )
-    authors = citation._get_authors_list()
+    from services.formatters.apa_formatter import APAFormatter
+    formatter = APAFormatter(citation)
+    authors = formatter.get_authors_list()
     assert authors == ["Single Author"]
 
 def test_format_authors_apa_single_author():
     """Test APA formatting for single author."""
     citation = Citation(type="book", title="Test", authors="", year=2023)
-    result = citation._format_authors_apa(["John Smith"])
+    from services.formatters.apa_formatter import APAFormatter
+    formatter = APAFormatter(citation)
+    result = formatter.format_authors_apa(["John Smith"])
     assert result == "Smith, J."
 
 def test_format_authors_apa_two_authors():
     """Test APA formatting for two authors."""
     citation = Citation(type="book", title="Test", authors="", year=2023)
-    result = citation._format_authors_apa(["John Smith", "Jane Doe"])
-    assert result == "Smith, J. & Doe, J."
+    from services.formatters.apa_formatter import APAFormatter
+    formatter = APAFormatter(citation)
+    result = formatter.format_authors_apa(["John Smith", "Jane Doe"])
+    assert result == "Smith, J., & Doe, J."
 
 def test_format_authors_apa_three_or_more_authors():
     """Test APA formatting for three or more authors."""
     citation = Citation(type="book", title="Test", authors="", year=2023)
-    result = citation._format_authors_apa(["John Smith", "Jane Doe", "Bob Brown"])
+    from services.formatters.apa_formatter import APAFormatter
+    formatter = APAFormatter(citation)
+    result = formatter.format_authors_apa(["John Smith", "Jane Doe", "Bob Brown"])
     assert result == "Smith, J., Doe, J., & Brown, B."
 
 def test_format_authors_apa_empty_list():
     """Test APA formatting for empty authors list."""
     citation = Citation(type="book", title="Test", authors="", year=2023)
-    result = citation._format_authors_apa([])
+    from services.formatters.apa_formatter import APAFormatter
+    formatter = APAFormatter(citation)
+    result = formatter.format_authors_apa([])
     assert result == ""
 
-def test_generate_apa_book_complete_data(sample_book_citation):
+def test_generate_apa_book_complete_data(sample_book_citation, citation_service):
     """Test APA book citation with all fields."""
-    result = sample_book_citation.generate_citation("apa")
-    expected = "Smith, J. & Doe, A. (2023). *The Great Book* (2nd ed.). Academic Press."
+    result = citation_service.format_citation(sample_book_citation, "apa")
+    expected = "Smith, J., & Doe, A. (2023). *The Great Book* (2nd ed.). Academic Press."
     assert result == expected
 
-def test_generate_apa_book_minimal_data(db_session):
+def test_generate_apa_book_minimal_data(db_session, citation_service):
     """Test APA book citation with minimal required fields."""
     citation = Citation(
         type="book",
@@ -178,11 +206,11 @@ def test_generate_apa_book_minimal_data(db_session):
         year=2023,
         publisher="Publisher"
     )
-    result = citation.generate_citation("apa")
+    result = citation_service.format_citation(citation, "apa")
     expected = "Author, A. (2023). *Simple Book*. Publisher."
     assert result == expected
 
-def test_generate_apa_book_first_edition_ignored(db_session):
+def test_generate_apa_book_first_edition_ignored(db_session, citation_service):
     """Test that 1st edition is not included in APA citation."""
     citation = Citation(
         type="book",
@@ -192,17 +220,17 @@ def test_generate_apa_book_first_edition_ignored(db_session):
         publisher="Publisher",
         edition=1
     )
-    result = citation.generate_citation("apa")
+    result = citation_service.format_citation(citation, "apa")
     expected = "Author, A. (2023). *First Edition Book*. Publisher."
     assert result == expected
 
-def test_generate_apa_article_complete_data(sample_article_citation):
+def test_generate_apa_article_complete_data(sample_article_citation, citation_service):
     """Test APA article citation with all fields."""
-    result = sample_article_citation.generate_citation("apa")
+    result = citation_service.format_citation(sample_article_citation, "apa")
     expected = "Johnson, M., Brown, K., & Wilson, R. (2022). Research Findings. *Science Journal*, 45(3), 123–145. https://doi.org/10.1234/science.2022"
     assert result == expected
 
-def test_generate_apa_article_without_doi(db_session):
+def test_generate_apa_article_without_doi(db_session, citation_service):
     """Test APA article citation without DOI."""
     citation = Citation(
         type="article",
@@ -214,11 +242,11 @@ def test_generate_apa_article_without_doi(db_session):
         issue="2",
         pages="10-20"
     )
-    result = citation.generate_citation("apa")
+    result = citation_service.format_citation(citation, "apa")
     expected = "Author, A. (2023). Article Without DOI. *Test Journal*, 1(2), 10–20."
     assert result == expected
 
-def test_generate_apa_article_without_issue(db_session):
+def test_generate_apa_article_without_issue(db_session, citation_service):
     """Test APA article citation without issue number."""
     citation = Citation(
         type="article",
@@ -229,17 +257,17 @@ def test_generate_apa_article_without_issue(db_session):
         volume=1,
         pages="10-20"
     )
-    result = citation.generate_citation("apa")
+    result = citation_service.format_citation(citation, "apa")
     expected = "Author, A. (2023). Article Without Issue. *Test Journal*, 1, 10–20."
     assert result == expected
 
-def test_generate_apa_website_complete_data(sample_website_citation):
+def test_generate_apa_website_complete_data(sample_website_citation, citation_service):
     """Test APA website citation with all fields."""
-    result = sample_website_citation.generate_citation("apa")
+    result = citation_service.format_citation(sample_website_citation, "apa")
     expected = "Author, W. (2024). Online Resource. *Example Website*. https://example.com/resource"
     assert result == expected
 
-def test_generate_apa_website_minimal_data(db_session):
+def test_generate_apa_website_minimal_data(db_session, citation_service):
     """Test APA website citation with minimal fields."""
     citation = Citation(
         type="website",
@@ -249,17 +277,17 @@ def test_generate_apa_website_minimal_data(db_session):
         publisher="Sample Site",
         url="https://example.com"
     )
-    result = citation.generate_citation("apa")
+    result = citation_service.format_citation(citation, "apa")
     expected = "Author, W. (2024). Website Title. *Sample Site*. https://example.com"
     assert result == expected
 
-def test_generate_apa_report_complete_data(sample_thesis_citation):
+def test_generate_apa_report_complete_data(sample_thesis_citation, citation_service):
     """Test APA report citation with all fields."""
-    result = sample_thesis_citation.generate_citation("apa")
+    result = citation_service.format_citation(sample_thesis_citation, "apa")
     expected = "Graduate, S. (2021). *Annual Report on Climate Change* (report). Environmental Research Institute. https://example.org/climate-report-2021"
     assert result == expected
 
-def test_generate_apa_report_without_url(db_session):
+def test_generate_apa_report_without_url(db_session, citation_service):
     """Test APA report citation without URL."""
     citation = Citation(
         type="report",
@@ -268,11 +296,11 @@ def test_generate_apa_report_without_url(db_session):
         year=2023,
         publisher="Tech Research Corp"
     )
-    result = citation.generate_citation("apa")
+    result = citation_service.format_citation(citation, "apa")
     expected = "Student, M. (2023). *Technical Report* (report). Tech Research Corp."
     assert result == expected
 
-def test_generate_apa_citation_missing_fields_handled_gracefully(db_session):
+def test_generate_apa_citation_missing_fields_handled_gracefully(db_session, citation_service):
     """Test that missing fields are handled gracefully."""
     citation = Citation(
         type="book",
@@ -281,11 +309,11 @@ def test_generate_apa_citation_missing_fields_handled_gracefully(db_session):
         year=None,
         publisher=None
     )
-    result = citation.generate_citation("apa")
+    result = citation_service.format_citation(citation, "apa")
     expected = "(n.d.). *Incomplete Book*."
     assert result == expected
 
-def test_generate_apa_citation_unsupported_type(db_session):
+def test_generate_apa_citation_unsupported_type(db_session, citation_service):
     """Test handling of unsupported citation types."""
     citation = Citation(
         type="unknown_type",
@@ -293,11 +321,11 @@ def test_generate_apa_citation_unsupported_type(db_session):
         authors=json.dumps(["Author, A."]),
         year=2023
     )
-    result = citation.generate_citation("apa")
+    result = citation_service.format_citation(citation, "apa")
     expected = "Unsupported citation type: unknown_type"
     assert result == expected
 
-def test_generate_apa_book_no_authors(db_session):
+def test_generate_apa_book_no_authors(db_session, citation_service):
     """Test APA book citation with no authors."""
     citation = Citation(
         type="book",
@@ -306,11 +334,11 @@ def test_generate_apa_book_no_authors(db_session):
         year=2023,
         publisher="Anonymous Press"
     )
-    result = citation.generate_citation("apa")
+    result = citation_service.format_citation(citation, "apa")
     expected = "(2023). *Authorless Book*. Anonymous Press."
     assert result == expected
 
-def test_generate_apa_article_no_volume_or_pages(db_session):
+def test_generate_apa_article_no_volume_or_pages(db_session, citation_service):
     """Test APA article citation without volume or pages."""
     citation = Citation(
         type="article",
@@ -319,11 +347,11 @@ def test_generate_apa_article_no_volume_or_pages(db_session):
         year=2023,
         journal="Simple Journal"
     )
-    result = citation.generate_citation("apa")
+    result = citation_service.format_citation(citation, "apa")
     expected = "Author, A. (2023). Basic Article. *Simple Journal*."
     assert result == expected
 
-def test_generate_apa_website_no_url(db_session):
+def test_generate_apa_website_no_url(db_session, citation_service):
     """Test APA website citation without URL."""
     citation = Citation(
         type="website",
@@ -332,11 +360,11 @@ def test_generate_apa_website_no_url(db_session):
         year=2023,
         publisher="Test Site"
     )
-    result = citation.generate_citation("apa")
+    result = citation_service.format_citation(citation, "apa")
     expected = "Author, A. (2023). Website Without URL. *Test Site*."
     assert result == expected
 
-def test_citation_model_integration_with_database(db_session):
+def test_citation_model_integration_with_database(db_session, citation_service):
     """Test that citation model works properly with database operations."""
     citation_data = {
         "type": "book",
@@ -352,11 +380,11 @@ def test_citation_model_integration_with_database(db_session):
     db_session.refresh(citation)
     
     # Test that the citation can generate APA format after database operations
-    result = citation.generate_citation("apa")
+    result = citation_service.format_citation(citation, "apa")
     expected = "Author, D. (2023). *Database Test Book*. DB Publisher."
     assert result == expected
     
     # Test that we can retrieve and use the citation
     retrieved = db_session.query(Citation).filter(Citation.id == citation.id).first()
     assert retrieved is not None
-    assert retrieved.generate_citation("apa") == expected
+    assert citation_service.format_citation(retrieved, "apa") == expected
