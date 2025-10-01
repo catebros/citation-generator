@@ -51,9 +51,9 @@ class ProjectRepository:
         Retrieve all projects from the database.
         
         Returns:
-            list[Project]: List of all projects
+            list[Project]: List of all projects ordered by creation date (newest first)
         """
-        return self.db.query(Project).all()
+        return self.db.query(Project).order_by(Project.created_at.desc()).all()
     
     def update(self, project_id: int, **kwargs) -> Project | None:
         """
@@ -79,7 +79,6 @@ class ProjectRepository:
             if hasattr(project, key):
                 setattr(project, key, value)
 
-                
         self.db.commit()
         self.db.refresh(project)
         return project   
@@ -99,7 +98,7 @@ class ProjectRepository:
             self.db.query(Citation)
             .join(ProjectCitation, Citation.id == ProjectCitation.citation_id)
             .filter(ProjectCitation.project_id == project_id)
-            .order_by(Citation.year.desc())
+            .order_by(Citation.created_at.desc())
             .all()
         )      
 
