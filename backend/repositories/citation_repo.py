@@ -122,7 +122,7 @@ class CitationRepository:
             Citation | None: The citation object if found, None otherwise
         """
         return self.db.query(Citation).filter(Citation.id == citation_id).first()
-    
+
     def delete(self, citation_id: int, project_id: int | None = None) -> bool:
         """
         Delete a citation or remove its association with a project.
@@ -134,7 +134,7 @@ class CitationRepository:
         
         Args:
             citation_id (int): ID of the citation to delete
-            project_id (int, optional): ID of the project for selective association removal
+            project_id (int | None): ID of the project for selective association removal
             
         Returns:
             bool: True if deletion was successful, False if citation not found
@@ -150,14 +150,25 @@ class CitationRepository:
             .all()
         )
 
-        # If no associations exist, delete the citation directly
-        if not associations:
+        # If no associations exist or project_id is None, delete the citation directly
+        if not associations or project_id is None:
+            # Delete any remaining associations first
+            for assoc in associations:
+                self.db.delete(assoc)
             self.db.delete(citation)
             self.db.commit()
             return True
 
-        # If multiple associations exist and project_id is specified, remove only that association
-        if len(associations) > 1 and project_id:
+        # If it has exactly one association, delete the association and then the citation
+        if len(associations) == 1:
+            assoc = associations[0]
+            self.db.delete(assoc)
+            self.db.delete(citation)
+            self.db.commit()
+            return True
+
+        # If multiple associations exist, remove only the specified project association
+        if len(associations) > 1:
             assoc = (
                 self.db.query(ProjectCitation)
                 .filter(ProjectCitation.citation_id == citation_id, ProjectCitation.project_id == project_id)
@@ -193,14 +204,10 @@ class CitationRepository:
         Note:
             - If citation is shared by multiple projects and changes would affect others,
               a new citation is created for this project
-            - All validation is assumed to be done before calling this method
         """
         citation = self.get_by_id(citation_id)
         if not citation:
             return None
-
-        if project_id is None:
-            raise ValueError("project_id is required for citation updates")
 
         # Prepare update data with proper JSON encoding for authors
         updated_data = {}
@@ -231,16 +238,14 @@ class CitationRepository:
         }
         
         # Merge current data with updates, prioritizing new data
-        # Special handling for year: if explicitly set to None in updates, use None
         final_data = {**current_data}
         for key, value in updated_data.items():
-            final_data[key] = value  # This ensures None values in updates take priority
+            final_data[key] = value  
 
         # Filter fields by citation type - set to None all fields not associated with the type
-        # Year is now required and handled normally in the allowed fields
         citation_type = final_data.get('type', citation.type)
         if citation_type in REQUIRED_FOR_CITATION_TYPES:
-            allowed_fields = REQUIRED_FOR_CITATION_TYPES[citation_type]  # year is included as required field
+            allowed_fields = REQUIRED_FOR_CITATION_TYPES[citation_type]
             for field in ALL_FIELDS:
                 if field not in allowed_fields:
                     final_data[field] = None

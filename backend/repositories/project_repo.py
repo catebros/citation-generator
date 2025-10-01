@@ -106,13 +106,13 @@ class ProjectRepository:
     def delete(self, project_id: int) -> bool:
         """
         Delete a project and handle orphaned citations.
-        ProjectCitation associations are automatically deleted by CASCADE.
+        First deletes ProjectCitation associations, then removes orphaned citations.
         """
         project = self.get_by_id(project_id)
         if not project:
             return False
 
-        # Get citations that will become orphaned after project deletion
+        # Get citations associated with this project
         citations_to_check = (
             self.db.query(Citation.id)
             .join(ProjectCitation, Citation.id == ProjectCitation.citation_id)
@@ -120,11 +120,10 @@ class ProjectRepository:
             .all()
         )
 
-        # Delete the project (CASCADE will handle ProjectCitation deletion)
-        self.db.delete(project)
-        self.db.flush()  # Ensure CASCADE takes effect
+        # Delete ProjectCitation associations for this project
+        self.db.query(ProjectCitation).filter(ProjectCitation.project_id == project_id).delete(synchronize_session=False)
 
-        # Now check for orphaned citations and delete them
+        # Check for orphaned citations and delete them
         for (citation_id,) in citations_to_check:
             remaining_assocs = (
                 self.db.query(ProjectCitation)
@@ -133,10 +132,12 @@ class ProjectRepository:
             )
             
             if remaining_assocs == 0:
-                citation = self.db.query(Citation).filter(Citation.id == citation_id).first()
-                if citation:
-                    self.db.delete(citation)
+                self.db.query(Citation).filter(
+                    Citation.id == citation_id
+                ).delete(synchronize_session=False)
 
+        # Finally delete the project
+        self.db.delete(project)
         self.db.commit()
         return True
 
