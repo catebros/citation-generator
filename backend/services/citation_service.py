@@ -16,8 +16,8 @@ class CitationService:
         Args:
             db: Database session or connection object
         """
-        self.citation_repo = CitationRepository(db)
-        self.project_repo = ProjectRepository(db)
+        self._citation_repo = CitationRepository(db)
+        self._project_repo = ProjectRepository(db)
 
     def create_citation(self, project_id: int, data: dict):
         """
@@ -40,7 +40,7 @@ class CitationService:
             raise HTTPException(status_code=400, detail="data is required for citation creation")
         
         # Verify that the parent project exists before creating citation
-        project = self.project_repo.get_by_id(project_id)
+        project = self._project_repo.get_by_id(project_id)
         if not project:
             raise HTTPException(status_code=404, detail="Project not found")   
         
@@ -48,7 +48,7 @@ class CitationService:
         validate_citation_data(data, mode="create")
         
         # Create and return the new citation
-        return self.citation_repo.create(project_id=project_id, **data)
+        return self._citation_repo.create(project_id=project_id, **data)
     
     def get_citation(self, citation_id: int):
         """
@@ -67,7 +67,7 @@ class CitationService:
         if citation_id is None:
             raise HTTPException(status_code=400, detail="citation_id is required")
         
-        citation = self.citation_repo.get_by_id(citation_id)
+        citation = self._citation_repo.get_by_id(citation_id)
         if not citation:
             raise HTTPException(status_code=404, detail="Citation not found")
         return citation
@@ -96,12 +96,12 @@ class CitationService:
             raise HTTPException(status_code=400, detail="data is required for citation updates")
         
         # Verify the project exists
-        project = self.project_repo.get_by_id(project_id)
+        project = self._project_repo.get_by_id(project_id)
         if not project:
             raise HTTPException(status_code=404, detail="Project not found")
         
         # Verify the citation exists and get current state
-        citation = self.citation_repo.get_by_id(citation_id)
+        citation = self._citation_repo.get_by_id(citation_id)
         if not citation:
             raise HTTPException(status_code=404, detail="Citation not found")
         
@@ -114,7 +114,7 @@ class CitationService:
         validate_citation_data(data, mode="update", current_type=current_type, type_change=type_change)
         
         # Perform the update operation
-        updated = self.citation_repo.update(citation_id=citation_id, project_id=project_id, **data)
+        updated = self._citation_repo.update(citation_id=citation_id, project_id=project_id, **data)
         if not updated:
             raise HTTPException(status_code=400, detail="Update failed")
 
@@ -141,17 +141,17 @@ class CitationService:
             raise HTTPException(status_code=400, detail="project_id is required for citation deletion")
         
         # Verify the project exists
-        project = self.project_repo.get_by_id(project_id)
+        project = self._project_repo.get_by_id(project_id)
         if not project:
             raise HTTPException(status_code=404, detail="Project not found")
          
         # Verify the citation exists before attempting deletion
-        citation = self.citation_repo.get_by_id(citation_id)
+        citation = self._citation_repo.get_by_id(citation_id)
         if not citation:
             raise HTTPException(status_code=404, detail="Citation not found")
            
         # Attempt to delete the citation
-        success = self.citation_repo.delete(citation_id=citation_id, project_id=project_id)
+        success = self._citation_repo.delete(citation_id=citation_id, project_id=project_id)
         if not success:
             raise HTTPException(status_code=404, detail="Citation not found")
         return {"message": "Citation deleted"}

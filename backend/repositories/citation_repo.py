@@ -24,7 +24,7 @@ class CitationRepository:
         Args:
             db (Session): SQLAlchemy database session for database operations
         """
-        self.db = db
+        self._db = db
 
     def create(self, project_id: int, **kwargs) -> Citation:
         """
@@ -47,7 +47,7 @@ class CitationRepository:
         # Check if an identical citation already exists to avoid duplicates
         # Compare all relevant fields to ensure exact match
         existing = (
-            self.db.query(Citation)
+            self._db.query(Citation)
             .filter(
                 Citation.type == kwargs.get("type"),
                 Citation.title == kwargs.get("title"), 
@@ -70,15 +70,15 @@ class CitationRepository:
         if existing:
             # If identical citation exists, just create project association if needed
             assoc = (
-                self.db.query(ProjectCitation)
+                self._db.query(ProjectCitation)
                 .filter(ProjectCitation.project_id == project_id, ProjectCitation.citation_id == existing.id)
                 .first()
             )
             if not assoc:
                 # Create new project-citation association
                 new_assoc = ProjectCitation(project_id=project_id, citation_id=existing.id)
-                self.db.add(new_assoc)
-                self.db.commit()
+                self._db.add(new_assoc)
+                self._db.commit()
             return existing
 
         # Create new citation with all provided fields
@@ -100,14 +100,14 @@ class CitationRepository:
         )
 
         # Save citation to database and get generated ID
-        self.db.add(citation)
-        self.db.commit()
-        self.db.refresh(citation)
+        self._db.add(citation)
+        self._db.commit()
+        self._db.refresh(citation)
 
         # Create project-citation association
         assoc = ProjectCitation(project_id=project_id, citation_id=citation.id)
-        self.db.add(assoc)
-        self.db.commit()
+        self._db.add(assoc)
+        self._db.commit()
 
         return citation
     
@@ -121,7 +121,7 @@ class CitationRepository:
         Returns:
             Citation | None: The citation object if found, None otherwise
         """
-        return self.db.query(Citation).filter(Citation.id == citation_id).first()
+        return self._db.query(Citation).filter(Citation.id == citation_id).first()
 
     def delete(self, citation_id: int, project_id: int | None = None) -> bool:
         """
@@ -145,7 +145,7 @@ class CitationRepository:
 
         # Get all project associations for this citation
         associations = (
-            self.db.query(ProjectCitation)
+            self._db.query(ProjectCitation)
             .filter(ProjectCitation.citation_id == citation_id)
             .all()
         )
@@ -154,36 +154,36 @@ class CitationRepository:
         if not associations or project_id is None:
             # Delete any remaining associations first
             for assoc in associations:
-                self.db.delete(assoc)
-            self.db.delete(citation)
-            self.db.commit()
+                self._db.delete(assoc)
+            self._db.delete(citation)
+            self._db.commit()
             return True
 
         # If it has exactly one association, delete the association and then the citation
         if len(associations) == 1:
             assoc = associations[0]
-            self.db.delete(assoc)
-            self.db.delete(citation)
-            self.db.commit()
+            self._db.delete(assoc)
+            self._db.delete(citation)
+            self._db.commit()
             return True
 
         # If multiple associations exist, remove only the specified project association
         if len(associations) > 1:
             assoc = (
-                self.db.query(ProjectCitation)
+                self._db.query(ProjectCitation)
                 .filter(ProjectCitation.citation_id == citation_id, ProjectCitation.project_id == project_id)
                 .first()
             )
             if assoc:
-                self.db.delete(assoc)
-                self.db.commit()
+                self._db.delete(assoc)
+                self._db.commit()
             return True
 
         # Remove all associations and then delete the citation
         for assoc in associations:
-            self.db.delete(assoc)
-        self.db.delete(citation)
-        self.db.commit()
+            self._db.delete(assoc)
+        self._db.delete(citation)
+        self._db.commit()
         return True
 
     def update(self, citation_id: int, project_id: int, **kwargs) -> Citation | None:
@@ -252,7 +252,7 @@ class CitationRepository:
 
         # Check if an identical citation already exists to avoid duplicates
         existing_citation = (
-            self.db.query(Citation)
+            self._db.query(Citation)
             .filter(
                 Citation.title == final_data['title'],
                 Citation.authors == final_data['authors'],
@@ -276,7 +276,7 @@ class CitationRepository:
         if existing_citation:
             # If identical citation exists, switch project association to existing citation
             existing_assoc = (
-                self.db.query(ProjectCitation)
+                self._db.query(ProjectCitation)
                 .filter(ProjectCitation.project_id == project_id, ProjectCitation.citation_id == existing_citation.id)
                 .first()
             )
@@ -284,33 +284,33 @@ class CitationRepository:
             # Create association with existing citation if it doesn't exist
             if not existing_assoc:
                 new_assoc = ProjectCitation(project_id=project_id, citation_id=existing_citation.id)
-                self.db.add(new_assoc)
+                self._db.add(new_assoc)
             
             # Remove association with the old citation
             old_assoc = (
-                self.db.query(ProjectCitation)
+                self._db.query(ProjectCitation)
                 .filter(ProjectCitation.project_id == project_id, ProjectCitation.citation_id == citation_id)
                 .first()
             )
             if old_assoc:
-                self.db.delete(old_assoc)
+                self._db.delete(old_assoc)
             
             # Delete the old citation if no other projects are using it
             remaining_assocs = (
-                self.db.query(ProjectCitation)
+                self._db.query(ProjectCitation)
                 .filter(ProjectCitation.citation_id == citation_id)
                 .count()
             )
             
             if remaining_assocs == 0:
-                self.db.delete(citation)
+                self._db.delete(citation)
             
-            self.db.commit()
+            self._db.commit()
             return existing_citation
 
         # Get current project associations for this citation
         current_associations = (
-            self.db.query(ProjectCitation)
+            self._db.query(ProjectCitation)
             .filter(ProjectCitation.citation_id == citation_id)
             .all()
         )
@@ -323,31 +323,31 @@ class CitationRepository:
                 if hasattr(citation, key):
                     setattr(citation, key, value)
             
-            self.db.commit()
-            self.db.refresh(citation)
+            self._db.commit()
+            self._db.refresh(citation)
             return citation
         
         else:
             # If multiple projects use this citation, create a new one for this project
             # This prevents changes from affecting other projects' citations
             new_citation = Citation(**final_data)
-            self.db.add(new_citation)
-            self.db.flush()  # Get the new citation ID without committing
-            self.db.refresh(new_citation)
+            self._db.add(new_citation)
+            self._db.flush()  # Get the new citation ID without committing
+            self._db.refresh(new_citation)
             
             # Remove old association and create new one
             old_assoc = (
-                self.db.query(ProjectCitation)
+                self._db.query(ProjectCitation)
                 .filter(ProjectCitation.project_id == project_id, ProjectCitation.citation_id == citation_id)
                 .first()
             )
             if old_assoc:
-                self.db.delete(old_assoc)
+                self._db.delete(old_assoc)
             
             # Associate the new citation with the project
             new_assoc = ProjectCitation(project_id=project_id, citation_id=new_citation.id)
-            self.db.add(new_assoc)
+            self._db.add(new_assoc)
             
-            self.db.commit()
-            self.db.refresh(new_citation)
+            self._db.commit()
+            self._db.refresh(new_citation)
             return new_citation

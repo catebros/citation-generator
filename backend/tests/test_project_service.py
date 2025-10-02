@@ -134,12 +134,12 @@ def test_get_all_projects_returns_list(project_service):
     assert len(projects) == 2
 
 def test_service_uses_repo_correctly(project_service, db_session):
-    assert isinstance(project_service.project_repo, ProjectRepository)
-    assert isinstance(project_service.citation_repo, CitationRepository)
-    
-    assert project_service.project_repo.db is db_session
-    assert project_service.citation_repo.db is db_session
-    
+    assert isinstance(project_service._project_repo, ProjectRepository)
+    assert isinstance(project_service._citation_repo, CitationRepository)
+
+    assert project_service._project_repo._db is db_session
+    assert project_service._citation_repo._db is db_session
+
 def test_validate_project_data_with_valid_name():
     """Test validation passes for valid data with name."""
     data = {"name": "Valid Project Name"}

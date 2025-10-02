@@ -17,7 +17,7 @@ class ProjectRepository:
         Args:
             db (Session): SQLAlchemy database session
         """
-        self.db = db
+        self._db = db
 
     def create(self, name: str) -> Project:
         """
@@ -30,9 +30,9 @@ class ProjectRepository:
             Project: The newly created project instance
         """
         project = Project(name=name)
-        self.db.add(project)
-        self.db.commit()
-        self.db.refresh(project)
+        self._db.add(project)
+        self._db.commit()
+        self._db.refresh(project)
         return project
     
     def get_by_id(self, project_id: int) -> Project | None:
@@ -45,7 +45,7 @@ class ProjectRepository:
         Returns:
             Project | None: The project if found, None otherwise
         """
-        return self.db.query(Project).filter(Project.id == project_id).first()
+        return self._db.query(Project).filter(Project.id == project_id).first()
     
     def get_all(self) -> list[Project]:
         """
@@ -54,7 +54,7 @@ class ProjectRepository:
         Returns:
             list[Project]: List of all projects ordered by creation date (newest first)
         """
-        return self.db.query(Project).order_by(Project.created_at.desc()).all()
+        return self._db.query(Project).order_by(Project.created_at.desc()).all()
     
     def update(self, project_id: int, **kwargs) -> Project | None:
         """
@@ -80,8 +80,8 @@ class ProjectRepository:
             if hasattr(project, key):
                 setattr(project, key, value)
 
-        self.db.commit()
-        self.db.refresh(project)
+        self._db.commit()
+        self._db.refresh(project)
         return project   
 
     def get_all_by_project(self, project_id: int) -> list[Citation]:
@@ -96,7 +96,7 @@ class ProjectRepository:
             list[Citation]: List of citations associated with the project
         """
         return (
-            self.db.query(Citation)
+            self._db.query(Citation)
             .join(ProjectCitation, Citation.id == ProjectCitation.citation_id)
             .filter(ProjectCitation.project_id == project_id)
             .order_by(Citation.created_at.desc())
@@ -114,31 +114,31 @@ class ProjectRepository:
 
         # Get citations associated with this project
         citations_to_check = (
-            self.db.query(Citation.id)
+            self._db.query(Citation.id)
             .join(ProjectCitation, Citation.id == ProjectCitation.citation_id)
             .filter(ProjectCitation.project_id == project_id)
             .all()
         )
 
         # Delete ProjectCitation associations for this project
-        self.db.query(ProjectCitation).filter(ProjectCitation.project_id == project_id).delete(synchronize_session=False)
+        self._db.query(ProjectCitation).filter(ProjectCitation.project_id == project_id).delete(synchronize_session=False)
 
         # Check for orphaned citations and delete them
         for (citation_id,) in citations_to_check:
             remaining_assocs = (
-                self.db.query(ProjectCitation)
+                self._db.query(ProjectCitation)
                 .filter(ProjectCitation.citation_id == citation_id)
                 .count()
             )
             
             if remaining_assocs == 0:
-                self.db.query(Citation).filter(
+                self._db.query(Citation).filter(
                     Citation.id == citation_id
                 ).delete(synchronize_session=False)
 
         # Finally delete the project
-        self.db.delete(project)
-        self.db.commit()
+        self._db.delete(project)
+        self._db.commit()
         return True
 
     def get_by_name(self, name: str):
@@ -151,4 +151,4 @@ class ProjectRepository:
         Returns:
             Project | None: The project if found, None otherwise
         """
-        return self.db.query(Project).filter(Project.name == name).first()
+        return self._db.query(Project).filter(Project.name == name).first()

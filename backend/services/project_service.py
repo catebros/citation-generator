@@ -16,8 +16,9 @@ class ProjectService:
         Args:
             db: Database session or connection object
         """
-        self.project_repo = ProjectRepository(db)
-        self.citation_repo = CitationRepository(db)
+        self._db = db
+        self._project_repo = ProjectRepository(db)
+        self._citation_repo = CitationRepository(db)
 
     def create_project(self, data: dict):
         """
@@ -45,10 +46,10 @@ class ProjectService:
         validate_project_data(data, mode="create")
         
         # Validate name uniqueness
-        validate_unique_name(name, self.project_repo)
+        validate_unique_name(name, self._project_repo)
 
         # Create and return the new project
-        return self.project_repo.create(name=name.strip())
+        return self._project_repo.create(name=name.strip())
 
     def get_project(self, project_id: int):
         """
@@ -68,7 +69,7 @@ class ProjectService:
             raise HTTPException(status_code=400, detail="project_id is required")
         
         # Retrieve project and verify it exists
-        project = self.project_repo.get_by_id(project_id)
+        project = self._project_repo.get_by_id(project_id)
         if not project:
             raise HTTPException(status_code=404, detail="Project not found")
         return project
@@ -80,7 +81,7 @@ class ProjectService:
         Returns:
             list: List of all project objects
         """
-        return self.project_repo.get_all()
+        return self._project_repo.get_all()
 
     def update_project(self, project_id: int, data: dict):
         """
@@ -110,11 +111,11 @@ class ProjectService:
             name = data["name"]
             if not name or name.strip() == "":
                 raise HTTPException(status_code=400, detail="Project name cannot be empty")
-            validate_unique_name(name, self.project_repo, exclude_id=project_id)
+            validate_unique_name(name, self._project_repo, exclude_id=project_id)
             data["name"] = name.strip()  # Use trimmed version
         
         # Attempt to update the project
-        project = self.project_repo.update(project_id, **data)
+        project = self._project_repo.update(project_id, **data)
         if not project:
             raise HTTPException(status_code=404, detail="Project not found")
         return project
@@ -137,7 +138,7 @@ class ProjectService:
             raise HTTPException(status_code=400, detail="project_id is required")
         
         # Attempt to delete the project
-        success = self.project_repo.delete(project_id)
+        success = self._project_repo.delete(project_id)
         if not success:
             raise HTTPException(status_code=404, detail="Project not found")
         return {"message": "Project deleted"}
@@ -160,12 +161,12 @@ class ProjectService:
             raise HTTPException(status_code=400, detail="project_id is required")
         
         # Verify the project exists before retrieving citations
-        project = self.project_repo.get_by_id(project_id)
+        project = self._project_repo.get_by_id(project_id)
         if not project:
             raise HTTPException(status_code=404, detail="Project not found")
         
         # Return all citations for this project
-        return self.project_repo.get_all_by_project(project_id)
+        return self._project_repo.get_all_by_project(project_id)
 
     def generate_bibliography_by_project(self, project_id: int, format_type: str = "apa"):
         """
@@ -186,12 +187,12 @@ class ProjectService:
             raise HTTPException(status_code=400, detail="project_id is required")
        
         # Verify the project exists
-        project = self.project_repo.get_by_id(project_id)
+        project = self._project_repo.get_by_id(project_id)
         if not project:
             raise HTTPException(status_code=404, detail="Project not found")
        
         # Get all citations for the project
-        citations = self.project_repo.get_all_by_project(project_id)
+        citations = self._project_repo.get_all_by_project(project_id)
        
         if not citations:
             return {
@@ -203,7 +204,7 @@ class ProjectService:
        
         # Import citation service to format citations
         from services.citation_service import CitationService
-        citation_service = CitationService(self.project_repo.db)
+        citation_service = CitationService(self._db)
        
         # Format each citation
         formatted_citations = []
