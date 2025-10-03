@@ -2,7 +2,7 @@ from fastapi import HTTPException
 import re
 from datetime import datetime
 from typing import Dict, List, Any, Optional
-from config.citation_config import REQUIRED_FOR_CITATION_TYPES
+from config.citation_config import CitationConfig
 
 def validate_citation_data(data: Dict[str, Any], mode: str = "create", current_type: Optional[str] = None, type_change: bool = False):
     """
@@ -34,11 +34,12 @@ def _get_citation_type(data: Dict[str, Any], current_type: Optional[str]) -> str
 
 def _validate_citation_type(citation_type: str):
     """Validate that the citation type is supported."""
-    if citation_type not in REQUIRED_FOR_CITATION_TYPES:
+    config = CitationConfig()
+    if not config.is_valid_type(citation_type):
         raise HTTPException(
             status_code=400, 
             detail=f"Unsupported citation type: {citation_type}. "
-                   f"Supported types: {', '.join(REQUIRED_FOR_CITATION_TYPES.keys())}"
+                   f"Supported types: {', '.join(config.get_supported_types())}"
         )
 
 def _validate_fields_by_mode_and_type(data: Dict[str, Any], citation_type: str, 
@@ -56,7 +57,8 @@ def _validate_create_mode_fields(data: Dict[str, Any], citation_type: str):
     Validate fields for create mode - all required fields must be present and only fields 
     from this type are allowed.
     """
-    required_fields = REQUIRED_FOR_CITATION_TYPES[citation_type]
+    config = CitationConfig()
+    required_fields = config.get_required_fields(citation_type)
     valid_fields = set(required_fields)  # year is now required, not optional
 
     # Check for missing required fields (only check if keys are present)
@@ -84,8 +86,12 @@ def _validate_update_with_type_change_fields(data: Dict[str, Any], new_type: str
     Validate fields when changing citation type - must provide fields that are required 
     in new type but not in previous type. Can also provide other fields from new type.
     """
-    new_required_fields = set(REQUIRED_FOR_CITATION_TYPES[new_type])
-    previous_required_fields = set(REQUIRED_FOR_CITATION_TYPES.get(previous_type, []))
+    config = CitationConfig()
+    new_required_fields = set(config.get_required_fields(new_type))
+    try:
+        previous_required_fields = set(config.get_required_fields(previous_type))
+    except KeyError:
+        previous_required_fields = set()
     
     # Get valid fields for the new type (year is now required, not optional)
     valid_fields = set(new_required_fields)
@@ -119,7 +125,8 @@ def _validate_update_same_type_fields(data: Dict[str, Any], citation_type: str):
     Validate fields for update mode with same type - all provided fields must be 
     valid for the citation type.
     """
-    valid_fields = set(REQUIRED_FOR_CITATION_TYPES[citation_type])  # year is now required, not optional
+    config = CitationConfig()
+    valid_fields = set(config.get_required_fields(citation_type))  # year is now required, not optional
     
     # Check for invalid fields
     provided_fields = set(data.keys())

@@ -1,7 +1,7 @@
 from sqlalchemy.orm import Session
 from models.citation import Citation
 from models.project_citation import ProjectCitation
-from config.citation_config import REQUIRED_FOR_CITATION_TYPES, ALL_FIELDS
+from config.citation_config import CitationConfig
 import json
 
 class CitationRepository:
@@ -244,9 +244,10 @@ class CitationRepository:
 
         # Filter fields by citation type - set to None all fields not associated with the type
         citation_type = final_data.get('type', citation.type)
-        if citation_type in REQUIRED_FOR_CITATION_TYPES:
-            allowed_fields = REQUIRED_FOR_CITATION_TYPES[citation_type]
-            for field in ALL_FIELDS:
+        config = CitationConfig()
+        if config.is_valid_type(citation_type):
+            allowed_fields = config.get_required_fields(citation_type)
+            for field in config.get_all_fields():
                 if field not in allowed_fields:
                     final_data[field] = None
 
