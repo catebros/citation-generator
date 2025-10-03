@@ -25,7 +25,7 @@ def db_session():
 # Creates a new project and verifies it has an ID and correct name
 def test_create_project(db_session):
     repo = ProjectRepository(db_session)
-    project = repo.create(name="AI Thesis")
+    project = repo.create({"name": "AI Thesis"})
 
     assert project.id is not None
     assert project.name == "AI Thesis"
@@ -34,7 +34,7 @@ def test_create_project(db_session):
 # Retrieves a project by its ID and verifies all attributes match
 def test_get_project_by_id(db_session):
     repo = ProjectRepository(db_session)
-    created = repo.create(name="ML Project")
+    created = repo.create({"name": "ML Project"})
     fetched = repo.get_by_id(created.id)
 
     assert fetched is not None
@@ -53,9 +53,9 @@ def test_get_all_projects(db_session):
     repo = ProjectRepository(db_session)
     
     # Create projects with small delay to ensure different timestamps
-    project1 = repo.create(name="Project 1")
+    project1 = repo.create({"name": "Project 1"})
     time.sleep(0.001)
-    project2 = repo.create(name="Project 2")
+    project2 = repo.create({"name": "Project 2"})
 
     projects = repo.get_all()
     assert len(projects) == 2
@@ -78,7 +78,7 @@ def test_get_all_projects_empty(db_session):
 # Updates project name and ignores None values to preserve existing data
 def test_update_project_name(db_session):
     repo = ProjectRepository(db_session)
-    project = repo.create(name="Old Project")
+    project = repo.create({"name": "Old Project"})
 
     updated = repo.update(project.id, name="Updated Project")
     assert updated is not None
@@ -95,7 +95,7 @@ def test_update_project_not_found(db_session):
 def test_delete_project_with_no_citations(db_session):
     repo = ProjectRepository(db_session)
     
-    project = repo.create("Empty Project")
+    project = repo.create({"name": "Empty Project"})
     project_id = project.id
     
     result = repo.delete(project_id)
@@ -115,8 +115,8 @@ def test_delete_project_not_found(db_session):
 def test_delete_project_with_unique_citations(db_session):
     project_repo = ProjectRepository(db_session)
     citation_repo = CitationRepository(db_session)
-    
-    project = project_repo.create("Project with Unique Citations")
+
+    project = project_repo.create({"name": "Project with Unique Citations"})
     
     # Crear citas únicas para este proyecto
     citation1 = citation_repo.create(
@@ -156,9 +156,9 @@ def test_delete_project_with_unique_citations(db_session):
 def test_delete_project_with_shared_citations(db_session):
     project_repo = ProjectRepository(db_session)
     citation_repo = CitationRepository(db_session)
-    
-    project1 = project_repo.create("Project 1 - Shared")
-    project2 = project_repo.create("Project 2 - Shared")
+
+    project1 = project_repo.create({"name": "Project 1 - Shared"})
+    project2 = project_repo.create({"name": "Project 2 - Shared"})
     
     shared_citation = citation_repo.create(
         project_id=project1.id,
@@ -194,8 +194,8 @@ def test_delete_project_mixed_citations(db_session):
     project_repo = ProjectRepository(db_session)
     citation_repo = CitationRepository(db_session)
     
-    project_to_delete = project_repo.create("Project to Delete")
-    other_project = project_repo.create("Other Project")
+    project_to_delete = project_repo.create({"name": "Project to Delete"})
+    other_project = project_repo.create({"name": "Other Project"})
 
     unique_citation = citation_repo.create(
         project_id=project_to_delete.id,
@@ -238,8 +238,8 @@ def test_delete_project_mixed_citations(db_session):
 def test_delete_project_cascade_integrity(db_session):
     project_repo = ProjectRepository(db_session)
     citation_repo = CitationRepository(db_session)
-    
-    project = project_repo.create("Cascade Test Project")
+
+    project = project_repo.create({"name": "Cascade Test Project"})
     
     citation = citation_repo.create(
         project_id=project.id,
@@ -271,8 +271,8 @@ def test_delete_project_cascade_integrity(db_session):
 def test_delete_project_multiple_citations_performance(db_session):
     project_repo = ProjectRepository(db_session)
     citation_repo = CitationRepository(db_session)
-    
-    project = project_repo.create("Performance Test Project")
+
+    project = project_repo.create({"name": "Performance Test Project"})
     
     citations = []
     for i in range(10):
@@ -304,7 +304,7 @@ def test_delete_project_multiple_citations_performance(db_session):
 # Returns project when it exists with the given name
 def test_get_by_name_existing(db_session):
     repo = ProjectRepository(db_session)
-    created = repo.create(name="Machine Learning Project")
+    created = repo.create({"name": "Machine Learning Project"})
     
     fetched = repo.get_by_name("Machine Learning Project")
     
@@ -326,7 +326,7 @@ def test_get_all_by_project(db_session):
     project_repo = ProjectRepository(db_session)
     citation_repo = CitationRepository(db_session)
 
-    project = project_repo.create("Thesis on AI")
+    project = project_repo.create({"name": "Thesis on AI"})
 
     # Create citations with delay to ensure different timestamps
     citation1 = citation_repo.create(
@@ -361,7 +361,7 @@ def test_get_all_by_project(db_session):
 def test_get_all_by_project_empty(db_session):
     project_repo = ProjectRepository(db_session)
 
-    project = project_repo.create("Empty Project")
+    project = project_repo.create({"name": "Empty Project"})
     results = project_repo.get_all_by_project(project.id)
 
     assert results == []
@@ -385,7 +385,7 @@ def test_get_all_by_project_nonexistent_project(db_session):
 
 def test_update_project_with_invalid_field_is_ignored(db_session):
     repo = ProjectRepository(db_session)
-    project = repo.create(name="Valid Project")
+    project = repo.create({"name": "Valid Project"})
 
     updated = repo.update(project.id, invalid_field="Should be ignored")
     assert updated.id == project.id
@@ -394,7 +394,7 @@ def test_update_project_with_invalid_field_is_ignored(db_session):
 
 def test_update_project_with_none_value_does_not_overwrite(db_session):
     repo = ProjectRepository(db_session)
-    project = repo.create(name="Original Name")
+    project = repo.create({"name": "Original Name"})
 
     updated = repo.update(project.id, name=None)
     assert updated.id == project.id

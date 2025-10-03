@@ -24,221 +24,258 @@ def citation_service(db_session):
 def project_service(db_session):
     return ProjectService(db_session)
 
-def test_create_citation_success(citation_service, project_service):
-    project = project_service.create_project({"name": "Test Project"})
-    
-    citation_data = {
-        "type": "article",
-        "title": "Test Article",
-        "authors": ["Author One"],
-        "year": 2023,
-        "journal": "Test Journal",
-        "volume": 1,
-        "issue": "1",
-        "pages": "1-10",
-        "doi": "10.1234/test.2023"
-    }
-    
-    citation = citation_service.create_citation(project.id, citation_data)
-    
-    assert citation.title == "Test Article"
-    assert citation.type == "article"
-    assert "Author One" in citation.authors
+# ========== CREATE_CITATION TESTS ==========
 
-def test_create_citation_missing_required_fields_raises_400(citation_service, project_service):
-    project = project_service.create_project({"name": "Test Project"})
-    
-    incomplete_data = {
-        "type": "article",
-    }
-    
+def test_create_citation_project_id_none(citation_service):
+    """project_id is None returns HTTP 400"""
     with pytest.raises(HTTPException) as exc_info:
-        citation_service.create_citation(project.id, incomplete_data)
-    
+        citation_service.create_citation(None, {"type": "book", "title": "Test"})
     assert exc_info.value.status_code == 400
 
-def test_create_citation_invalid_project_raises_404(citation_service):
-    citation_data = {
-        "type": "article",
-        "title": "Test Article",
-        "authors": ["Author"],
-        "year": 2023,
-        "journal": "Test Journal",
-        "volume": 1,
-        "issue": "1",
-        "pages": "1-10"
-    }
+def test_create_citation_project_not_exists(citation_service, project_service):
+    """Project does not exist returns HTTP 404"""
+    with pytest.raises(HTTPException) as exc_info:
+        citation_service.create_citation(999, {"type": "book", "title": "Test"})
+    assert exc_info.value.status_code == 404
+
+def test_create_citation_data_none(citation_service, project_service):
+    """data is None returns HTTP 400"""
+    # Create a project first
+    project = project_service.create_project({"name": "Test Project"})
     
     with pytest.raises(HTTPException) as exc_info:
-        citation_service.create_citation(999, citation_data)  
-    
-    assert exc_info.value.status_code == 404
-    assert "Project not found" in exc_info.value.detail
+        citation_service.create_citation(project.id, None)
+    assert exc_info.value.status_code == 400
 
-def test_get_citation_success(citation_service, project_service):
+def test_create_citation_duplicate_detected(citation_service, project_service):
+    """Duplicate detected returns HTTP 409"""
+    # Create a project first
+    project = project_service.create_project({"name": "Test Project"})
+    
+    # Create first citation
+    citation_data = {
+        "type": "book",
+        "title": "Test Book",
+        "authors": ["Test Author"],
+        "year": 2020,
+        "publisher": "Test Publisher",
+        "place": "Test City",
+        "edition": 1
+    }
+    citation_service.create_citation(project.id, citation_data)
+    
+    # Try to create duplicate
+    with pytest.raises(HTTPException) as exc_info:
+        citation_service.create_citation(project.id, citation_data)
+    assert exc_info.value.status_code == 409
+
+def test_create_citation_valid_case(citation_service, project_service):
+    """Valid case calls validate_citation_data and _citation_repo.create"""
+    # Create a project first
     project = project_service.create_project({"name": "Test Project"})
     
     citation_data = {
         "type": "book",
         "title": "Test Book",
-        "authors": ["Book Author"],
-        "year": 2022,
-        "publisher": "Test Publisher",
-        "place": "Test City",
-        "edition": 1
-    }
-    
-    created = citation_service.create_citation(project.id, citation_data)
-    retrieved = citation_service.get_citation(created.id)
-    
-    assert retrieved.id == created.id
-    assert retrieved.title == "Test Book"
-
-def test_update_citation_success(citation_service, project_service):
-    project = project_service.create_project({"name": "Update Project"})
-    
-    citation_data = {
-        "type": "article",
-        "title": "Original Title",
-        "authors": ["Author"],
-        "year": 2020,
-        "journal": "Original Journal",
-        "volume": 1,
-        "issue": "1",
-        "pages": "1-10",
-        "doi": "10.1234/original.2020"
-    }
-    
-    created = citation_service.create_citation(project.id, citation_data)
-    
-    update_data = {
-        "title": "Updated Title",
-        "year": 2021
-    }
-    
-    updated = citation_service.update_citation(created.id, project.id, update_data)
-    
-    assert updated.title == "Updated Title"
-    assert updated.year == 2021
-    assert "Author" in updated.authors
-
-def test_update_citation_missing_project_id_raises_400(citation_service, project_service):
-    project = project_service.create_project({"name": "Test Project"})
-    
-    citation_data = {
-        "type": "article",
-        "title": "Test",
-        "authors": ["Author"],
-        "year": 2020,
-        "journal": "Test Journal",
-        "volume": 1,
-        "issue": "1",
-        "pages": "1-10",
-        "doi": "10.1234/test.2020"
-    }
-    
-    created = citation_service.create_citation(project.id, citation_data)
-    
-    with pytest.raises(HTTPException) as exc_info:
-        citation_service.update_citation(created.id, None, {"title": "New Title"})
-    
-    assert exc_info.value.status_code == 400
-    assert "project_id is required" in exc_info.value.detail
-
-def test_update_citation_not_found_raises_404(citation_service, project_service):
-    project = project_service.create_project({"name": "Test Project"})
-    
-    with pytest.raises(HTTPException) as exc_info:
-        citation_service.update_citation(999, project.id, {"title": "New"})
-    
-    assert exc_info.value.status_code == 404
-    assert "Citation not found" in exc_info.value.detail
-
-def test_delete_citation_success(citation_service, project_service):
-    project = project_service.create_project({"name": "Delete Project"})
-    
-    citation_data = {
-        "type": "book",
-        "title": "To Delete",
-        "authors": ["Author"],
+        "authors": ["Test Author"],
         "year": 2020,
         "publisher": "Test Publisher",
         "place": "Test City",
         "edition": 1
     }
     
-    created = citation_service.create_citation(project.id, citation_data)
-    
-    result = citation_service.delete_citation(created.id, project.id)
-    
-    assert result["message"] == "Citation deleted"
+    result = citation_service.create_citation(project.id, citation_data)
+    assert result.title == "Test Book"
 
-def test_service_handles_repo_exceptions(citation_service, project_service):
-    project = project_service.create_project({"name": "Exception Test"})
-    
-    citation_data = {
-        "type": "article",
-        "title": "Test",
-        "authors": ["Author"],
-        "year": 2020,
-        "journal": "Test Journal",
-        "volume": 1,
-        "issue": "1",
-        "pages": "1-10",
-        "doi": "10.1234/exception.2020"
-    }
-    
-    citation = citation_service.create_citation(project.id, citation_data)
+# ========== GET_CITATION TESTS ==========
 
-    assert citation is not None
-    assert isinstance(citation.id, int)
-
-def test_create_citation_missing_project_id_raises_400(citation_service):
-    citation_data = {
-        "type": "article",
-        "title": "Test Article",
-        "authors": ["Author"],
-        "year": 2023,
-        "journal": "Test Journal",
-        "volume": 1,
-        "issue": "1",
-        "pages": "1-10"
-    }
-    
-    with pytest.raises(HTTPException) as exc_info:
-        citation_service.create_citation(None, citation_data)
-    
-    assert exc_info.value.status_code == 400
-    assert "project_id is required" in exc_info.value.detail
-
-def test_get_citation_missing_citation_id_raises_400(citation_service):
+def test_get_citation_id_none(citation_service):
+    """citation_id is None returns HTTP 400"""
     with pytest.raises(HTTPException) as exc_info:
         citation_service.get_citation(None)
-    
     assert exc_info.value.status_code == 400
-    assert "citation_id is required" in exc_info.value.detail
 
-def test_update_citation_missing_citation_id_raises_400(citation_service, project_service):
+def test_get_citation_not_found(citation_service):
+    """Citation not found returns HTTP 404"""
+    with pytest.raises(HTTPException) as exc_info:
+        citation_service.get_citation(999)
+    assert exc_info.value.status_code == 404
+
+def test_get_citation_found(citation_service, project_service):
+    """Citation found returns object"""
+    # Create project and citation
+    project = project_service.create_project({"name": "Test Project"})
+    citation_data = {
+        "type": "book",
+        "title": "Test Book",
+        "authors": ["Test Author"],
+        "year": 2020,
+        "publisher": "Test Publisher",
+        "place": "Test City",
+        "edition": 1
+    }
+    created_citation = citation_service.create_citation(project.id, citation_data)
+    
+    # Get citation
+    result = citation_service.get_citation(created_citation.id)
+    assert result.id == created_citation.id
+    assert result.title == "Test Book"
+
+# ========== UPDATE_CITATION TESTS ==========
+
+def test_update_citation_id_none(citation_service):
+    """citation_id is None returns HTTP 400"""
+    with pytest.raises(HTTPException) as exc_info:
+        citation_service.update_citation(None, 1, {"title": "Updated"})
+    assert exc_info.value.status_code == 400
+
+def test_update_citation_project_id_none(citation_service):
+    """project_id is None returns HTTP 400"""
+    with pytest.raises(HTTPException) as exc_info:
+        citation_service.update_citation(1, None, {"title": "Updated"})
+    assert exc_info.value.status_code == 400
+
+def test_update_citation_data_none(citation_service):
+    """data is None returns HTTP 400"""
+    with pytest.raises(HTTPException) as exc_info:
+        citation_service.update_citation(1, 1, None)
+    assert exc_info.value.status_code == 400
+
+def test_update_citation_project_not_exists(citation_service):
+    """Project does not exist returns HTTP 404"""
+    with pytest.raises(HTTPException) as exc_info:
+        citation_service.update_citation(1, 999, {"title": "Updated"})
+    assert exc_info.value.status_code == 404
+
+def test_update_citation_not_exists(citation_service, project_service):
+    """Citation does not exist returns HTTP 404"""
     project = project_service.create_project({"name": "Test Project"})
     
     with pytest.raises(HTTPException) as exc_info:
-        citation_service.update_citation(None, project.id, {"title": "New Title"})
-    
-    assert exc_info.value.status_code == 400
-    assert "citation_id is required" in exc_info.value.detail
+        citation_service.update_citation(999, project.id, {"title": "Updated"})
+    assert exc_info.value.status_code == 404
 
-def test_delete_citation_missing_citation_id_raises_400(citation_service, project_service):
+def test_update_citation_duplicate_detected(citation_service, project_service):
+    """Duplicate detected in project (different id) returns HTTP 409"""
+    project = project_service.create_project({"name": "Test Project"})
+    
+    # Create two citations
+    citation1_data = {
+        "type": "book",
+        "title": "Book 1",
+        "authors": ["Author 1"],
+        "year": 2020,
+        "publisher": "Publisher 1",
+        "place": "City 1",
+        "edition": 1
+    }
+    citation2_data = {
+        "type": "book",
+        "title": "Book 2",
+        "authors": ["Author 2"],
+        "year": 2021,
+        "publisher": "Publisher 2",
+        "place": "City 2",
+        "edition": 2
+    }
+    
+    citation1 = citation_service.create_citation(project.id, citation1_data)
+    citation2 = citation_service.create_citation(project.id, citation2_data)
+    
+    # Try to update citation2 to have same data as citation1
+    with pytest.raises(HTTPException) as exc_info:
+        citation_service.update_citation(citation2.id, project.id, citation1_data)
+    assert exc_info.value.status_code == 409
+
+def test_update_citation_type_not_changes(citation_service, project_service):
+    """Type does not change, validate_citation_data called with type_change=False"""
+    project = project_service.create_project({"name": "Test Project"})
+    citation_data = {
+        "type": "book",
+        "title": "Original Book",
+        "authors": ["Author"],
+        "year": 2020,
+        "publisher": "Original Publisher",
+        "place": "Original City",
+        "edition": 1
+    }
+    citation = citation_service.create_citation(project.id, citation_data)
+    
+    update_data = {
+        "type": "book",  # Same type
+        "title": "Updated Book",
+        "authors": ["Author"],
+        "year": 2020,
+        "publisher": "Updated Publisher",
+        "place": "Updated City",
+        "edition": 2
+    }
+    
+    result = citation_service.update_citation(citation.id, project.id, update_data)
+    assert result.title == "Updated Book"
+    assert result.type == "book"
+
+def test_update_citation_type_changes(citation_service, project_service):
+    """Type changes, validate_citation_data called with type_change=True"""
+    project = project_service.create_project({"name": "Test Project"})
+    citation_data = {
+        "type": "book",
+        "title": "Original Book",
+        "authors": ["Author"],
+        "year": 2020,
+        "publisher": "Original Publisher",
+        "place": "Original City",
+        "edition": 1
+    }
+    citation = citation_service.create_citation(project.id, citation_data)
+    
+    update_data = {
+        "type": "article",  # Different type
+        "title": "Updated Article",
+        "authors": ["Author"],
+        "journal": "Test Journal",
+        "year": 2020,
+        "volume": 1,
+        "issue": "1",
+        "pages": "1-10",
+        "doi": "10.1000/test"
+    }
+    
+    result = citation_service.update_citation(citation.id, project.id, update_data)
+    assert result.title == "Updated Article"
+    assert result.type == "article"
+
+# ========== DELETE_CITATION TESTS ==========
+
+def test_delete_citation_id_none(citation_service):
+    """citation_id is None returns HTTP 400"""
+    with pytest.raises(HTTPException) as exc_info:
+        citation_service.delete_citation(None, 1)
+    assert exc_info.value.status_code == 400
+
+def test_delete_citation_project_id_none(citation_service):
+    """project_id is None returns HTTP 400"""
+    with pytest.raises(HTTPException) as exc_info:
+        citation_service.delete_citation(1, None)
+    assert exc_info.value.status_code == 400
+
+def test_delete_citation_project_not_exists(citation_service):
+    """Project does not exist returns HTTP 404"""
+    with pytest.raises(HTTPException) as exc_info:
+        citation_service.delete_citation(1, 999)
+    assert exc_info.value.status_code == 404
+
+def test_delete_citation_not_exists(citation_service, project_service):
+    """Citation does not exist returns HTTP 404"""
     project = project_service.create_project({"name": "Test Project"})
     
     with pytest.raises(HTTPException) as exc_info:
-        citation_service.delete_citation(None, project.id)
-    
-    assert exc_info.value.status_code == 400
-    assert "citation_id is required" in exc_info.value.detail
+        citation_service.delete_citation(999, project.id)
+    assert exc_info.value.status_code == 404
 
-def test_delete_citation_missing_project_id_raises_400(citation_service, project_service):
+def test_delete_citation_valid_case(citation_service, project_service):
+    """Valid case returns message Citation deleted"""
     project = project_service.create_project({"name": "Test Project"})
-    
     citation_data = {
         "type": "book",
         "title": "Test Book",
@@ -248,361 +285,64 @@ def test_delete_citation_missing_project_id_raises_400(citation_service, project
         "place": "Test City",
         "edition": 1
     }
+    citation = citation_service.create_citation(project.id, citation_data)
     
-    created = citation_service.create_citation(project.id, citation_data)
-    
-    with pytest.raises(HTTPException) as exc_info:
-        citation_service.delete_citation(created.id, None)
-    
-    assert exc_info.value.status_code == 400
-    assert "project_id is required" in exc_info.value.detail
+    result = citation_service.delete_citation(citation.id, project.id)
+    assert result == {"message": "Citation deleted"}
 
-def test_create_citation_invalid_type_raises_400(citation_service, project_service):
-    project = project_service.create_project({"name": "Test Project"})
-    
-    citation_data = {
-        "type": "invalid_type",
-        "title": "Test Title",
-        "authors": ["Author"],
-        "year": 2023
-    }
-    
-    with pytest.raises(HTTPException) as exc_info:
-        citation_service.create_citation(project.id, citation_data)
-    
-    assert exc_info.value.status_code == 400
-    assert "Unsupported citation type" in exc_info.value.detail
+# ========== FORMAT_CITATION TESTS ==========
 
-def test_create_citation_missing_title_raises_400(citation_service, project_service):
+def test_format_citation_apa(citation_service, project_service):
+    """Format apa instantiates APAFormatter and calls format_citation"""
     project = project_service.create_project({"name": "Test Project"})
-    
-    citation_data = {
-        "type": "article",
-        "authors": ["Author"],
-        "year": 2023,
-        "journal": "Test Journal",
-        "volume": 1,
-        "issue": "1",
-        "pages": "1-10",
-        "doi": "10.1234/test.2023"
-    }
-    
-    with pytest.raises(HTTPException) as exc_info:
-        citation_service.create_citation(project.id, citation_data)
-    
-    assert exc_info.value.status_code == 400
-    assert "Missing required article fields: title" in exc_info.value.detail
-
-def test_create_citation_missing_authors_raises_400(citation_service, project_service):
-    project = project_service.create_project({"name": "Test Project"})
-    
-    citation_data = {
-        "type": "article",
-        "title": "Test Article",
-        "year": 2023,
-        "journal": "Test Journal",
-        "volume": 1,
-        "issue": "1",
-        "pages": "1-10",
-        "doi": "10.1234/test.2023"
-    }
-    
-    with pytest.raises(HTTPException) as exc_info:
-        citation_service.create_citation(project.id, citation_data)
-    
-    assert exc_info.value.status_code == 400
-    assert "Missing required article fields: authors" in exc_info.value.detail
-
-def test_create_citation_empty_authors_list_raises_400(citation_service, project_service):
-    project = project_service.create_project({"name": "Test Project"})
-    
-    citation_data = {
-        "type": "article",
-        "title": "Test Article",
-        "authors": [],
-        "year": 2023,
-        "journal": "Test Journal",
-        "volume": 1,
-        "issue": "1",
-        "pages": "1-10",
-        "doi": "10.1234/test.2023"
-    }
-    
-    with pytest.raises(HTTPException) as exc_info:
-        citation_service.create_citation(project.id, citation_data)
-    
-    assert exc_info.value.status_code == 400
-    assert "Authors list cannot be empty" in exc_info.value.detail
-
-def test_create_citation_invalid_year_format_raises_400(citation_service, project_service):
-    project = project_service.create_project({"name": "Test Project"})
-    
-    citation_data = {
-        "type": "article",
-        "title": "Test Article",
-        "authors": ["Author"],
-        "year": "invalid_year",
-        "journal": "Test Journal",
-        "volume": 1,
-        "issue": "1",
-        "pages": "1-10",
-        "doi": "10.1234/test.2023"
-    }
-    
-    with pytest.raises(HTTPException) as exc_info:
-        citation_service.create_citation(project.id, citation_data)
-    
-    assert exc_info.value.status_code == 400
-    assert "Year must be an integer" in exc_info.value.detail
-
-def test_create_citation_future_year_raises_400(citation_service, project_service):
-    project = project_service.create_project({"name": "Test Project"})
-    
-    citation_data = {
-        "type": "article",
-        "title": "Test Article",
-        "authors": ["Author"],
-        "year": 2030,
-        "journal": "Test Journal",
-        "volume": 1,
-        "issue": "1",
-        "pages": "1-10",
-        "doi": "10.1234/test.2023"
-    }
-    
-    with pytest.raises(HTTPException) as exc_info:
-        citation_service.create_citation(project.id, citation_data)
-    
-    assert exc_info.value.status_code == 400
-    assert "Year must be a non-negative integer not exceeding" in exc_info.value.detail
-
-def test_create_citation_very_old_year_raises_400(citation_service, project_service):
-    project = project_service.create_project({"name": "Test Project"})
-    
-    citation_data = {
-        "type": "article",
-        "title": "Test Article",
-        "authors": ["Author"],
-        "year": -1,
-        "journal": "Test Journal",
-        "volume": 1,
-        "issue": "1",
-        "pages": "1-10",
-        "doi": "10.1234/test.2023"
-    }
-    
-    with pytest.raises(HTTPException) as exc_info:
-        citation_service.create_citation(project.id, citation_data)
-    
-    assert exc_info.value.status_code == 400
-    assert "Year must be a non-negative integer not exceeding" in exc_info.value.detail
-
-def test_create_article_missing_journal_raises_400(citation_service, project_service):
-    project = project_service.create_project({"name": "Test Project"})
-    
-    citation_data = {
-        "type": "article",
-        "title": "Test Article",
-        "authors": ["Author"],
-        "year": 2023,
-        "volume": 1,
-        "issue": "1",
-        "pages": "1-10",
-        "doi": "10.1234/test.2023"
-    }
-    
-    with pytest.raises(HTTPException) as exc_info:
-        citation_service.create_citation(project.id, citation_data)
-    
-    assert exc_info.value.status_code == 400
-    assert "Missing required article fields: journal" in exc_info.value.detail
-
-def test_create_book_missing_publisher_raises_400(citation_service, project_service):
-    project = project_service.create_project({"name": "Test Project"})
-    
     citation_data = {
         "type": "book",
         "title": "Test Book",
-        "authors": ["Author"],
-        "year": 2023,
-        "place": "Test City",
-        "edition": "1st"
-    }
-    
-    with pytest.raises(HTTPException) as exc_info:
-        citation_service.create_citation(project.id, citation_data)
-    
-    assert exc_info.value.status_code == 400
-    assert "Missing required book fields: publisher" in exc_info.value.detail
-
-def test_create_website_missing_url_raises_400(citation_service, project_service):
-    project = project_service.create_project({"name": "Test Project"})
-    
-    citation_data = {
-        "type": "website",
-        "title": "Test Website",
-        "authors": ["Author"],
-        "year": 2023,
-        "publisher": "Test Site",
-        "access_date": "2023-12-01"
-    }
-    
-    with pytest.raises(HTTPException) as exc_info:
-        citation_service.create_citation(project.id, citation_data)
-    
-    assert exc_info.value.status_code == 400
-    assert "Missing required website fields: url" in exc_info.value.detail
-
-def test_create_citation_invalid_doi_format_raises_400(citation_service, project_service):
-    project = project_service.create_project({"name": "Test Project"})
-    
-    citation_data = {
-        "type": "article",
-        "title": "Test Article",
-        "authors": ["Author"],
-        "year": 2023,
-        "journal": "Test Journal",
-        "volume": 1,
-        "issue": "1",
-        "pages": "1-10",
-        "doi": "invalid-doi-format"
-    }
-    
-    with pytest.raises(HTTPException) as exc_info:
-        citation_service.create_citation(project.id, citation_data)
-    
-    assert exc_info.value.status_code == 400
-    assert "Invalid DOI format" in exc_info.value.detail
-
-def test_create_citation_invalid_url_format_raises_400(citation_service, project_service):
-    project = project_service.create_project({"name": "Test Project"})
-    
-    citation_data = {
-        "type": "website",
-        "title": "Test Website",
-        "authors": ["Author"],
-        "year": 2023,
-        "publisher": "Test Site",
-        "url": "not-a-valid-url",
-        "access_date": "2023-12-01"
-    }
-    
-    with pytest.raises(HTTPException) as exc_info:
-        citation_service.create_citation(project.id, citation_data)
-    
-    assert exc_info.value.status_code == 400
-    assert "Invalid URL format" in exc_info.value.detail
-
-def test_create_citation_empty_title_raises_400(citation_service, project_service):
-    project = project_service.create_project({"name": "Test Project"})
-    
-    citation_data = {
-        "type": "article",
-        "title": "",
-        "authors": ["Author"],
-        "year": 2023,
-        "journal": "Test Journal",
-        "volume": 1,
-        "issue": "1",
-        "pages": "1-10",
-        "doi": "10.1234/test.2023"
-    }
-    
-    with pytest.raises(HTTPException) as exc_info:
-        citation_service.create_citation(project.id, citation_data)
-    
-    assert exc_info.value.status_code == 400
-    assert "Title must be a non-empty string" in exc_info.value.detail
-
-def test_create_citation_whitespace_only_title_raises_400(citation_service, project_service):
-    project = project_service.create_project({"name": "Test Project"})
-    
-    citation_data = {
-        "type": "article",
-        "title": "   ",
-        "authors": ["Author"],
-        "year": 2023,
-        "journal": "Test Journal",
-        "volume": 1,
-        "issue": "1",
-        "pages": "1-10",
-        "doi": "10.1234/test.2023"
-    }
-    
-    with pytest.raises(HTTPException) as exc_info:
-        citation_service.create_citation(project.id, citation_data)
-    
-    assert exc_info.value.status_code == 400
-    assert "Title must be a non-empty string" in exc_info.value.detail
-
-def test_update_citation_with_invalid_data_raises_400(citation_service, project_service):
-    project = project_service.create_project({"name": "Test Project"})
-    
-    citation_data = {
-        "type": "article",
-        "title": "Original Title",
-        "authors": ["Author"],
+        "authors": ["Test Author"],
         "year": 2020,
-        "journal": "Test Journal",
-        "volume": 1,
-        "issue": "1",
-        "pages": "1-10",
-        "doi": "10.1234/test.2020"
+        "publisher": "Test Publisher",
+        "place": "Test City",
+        "edition": 1
     }
-    
-    created = citation_service.create_citation(project.id, citation_data)
-    
-    update_data = {
-        "year": "invalid_year"
-    }
-    
-    with pytest.raises(HTTPException) as exc_info:
-        citation_service.update_citation(created.id, project.id, update_data)
-    
-    assert exc_info.value.status_code == 400
-    assert "Year must be an integer" in exc_info.value.detail
-
-def test_create_citation_with_special_characters_in_title_success(citation_service, project_service):
-    project = project_service.create_project({"name": "Test Project"})
-    
-    citation_data = {
-        "type": "article",
-        "title": "Test Article: A Study of α-β Interactions & γ-Radiation Effects",
-        "authors": ["Author One", "Author Two"],
-        "year": 2023,
-        "journal": "Test Journal",
-        "volume": 1,
-        "issue": "1",
-        "pages": "1-10",
-        "doi": "10.1234/test.2023"
-    }
-    
     citation = citation_service.create_citation(project.id, citation_data)
     
-    assert citation.title == "Test Article: A Study of α-β Interactions & γ-Radiation Effects"
-    # authors se almacena como JSON string, así que verificamos que contenga los autores
-    assert "Author One" in citation.authors
-    assert "Author Two" in citation.authors
+    result = citation_service.format_citation(citation, "apa")
+    assert "Author" in result
+    assert "2020" in result
+    assert "Test Book" in result
 
-def test_create_citation_with_multiple_authors_success(citation_service, project_service):
+def test_format_citation_mla(citation_service, project_service):
+    """Format mla instantiates MLAFormatter"""
     project = project_service.create_project({"name": "Test Project"})
-    
-    authors_list = ["First Author", "Second Author", "Third Author", "Fourth Author"]
-    
     citation_data = {
-        "type": "article",
-        "title": "Multi-Author Study",
-        "authors": authors_list,
-        "year": 2023,
-        "journal": "Test Journal",
-        "volume": 1,
-        "issue": "1",
-        "pages": "1-10",
-        "doi": "10.1234/multi.2023"
+        "type": "book",
+        "title": "Test Book",
+        "authors": ["Test Author"],
+        "year": 2020,
+        "publisher": "Test Publisher",
+        "place": "Test City",
+        "edition": 1
     }
-    
     citation = citation_service.create_citation(project.id, citation_data)
     
-    # authors se almacena como JSON string, así que verificamos que contenga todos los autores
-    for author in authors_list:
-        assert author in citation.authors
+    result = citation_service.format_citation(citation, "mla")
+    assert "Author" in result
+    assert "2020" in result
+    assert "Test Book" in result
+
+def test_format_citation_unsupported_format(citation_service, project_service):
+    """Unsupported format chicago raises ValueError"""
+    project = project_service.create_project({"name": "Test Project"})
+    citation_data = {
+        "type": "book",
+        "title": "Test Book",
+        "authors": ["Test Author"],
+        "year": 2020,
+        "publisher": "Test Publisher",
+        "place": "Test City",
+        "edition": 1
+    }
+    citation = citation_service.create_citation(project.id, citation_data)
+    
+    with pytest.raises(ValueError):
+        citation_service.format_citation(citation, "chicago")

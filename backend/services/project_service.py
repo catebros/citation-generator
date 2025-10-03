@@ -1,7 +1,7 @@
 from repositories.citation_repo import CitationRepository
 from repositories.project_repo import ProjectRepository
 from fastapi import HTTPException
-from services.validators.project_validator import validate_project_data, validate_unique_name
+from services.validators.project_validator import validate_project_data
 
 class ProjectService:
     """
@@ -31,25 +31,27 @@ class ProjectService:
             Project: The newly created project object
             
         Raises:
-            HTTPException: If data is missing, name is empty, or project name already exists
+            HTTPException: If data is missing or project name already exists
         """
         # Validate required parameters
         if data is None:
             raise HTTPException(status_code=400, detail="data is required for project creation")
         
-        # Extract and validate project name
-        name = data.get("name")
-        if not name or name.strip() == "":
-            raise HTTPException(status_code=400, detail="Project name cannot be empty")
-        
-        # Validate project data format
+        # Validate project data format (includes name validation)
         validate_project_data(data, mode="create")
         
-        # Validate name uniqueness
-        validate_unique_name(name, self._project_repo)
+        # Extract name for uniqueness check (safe now after validation)
+        name = data.get("name")
+        
+        # Check name uniqueness
+        existing_project = self._project_repo.get_by_name(name.strip())
+        if existing_project:
+            raise HTTPException(
+                status_code=409, 
+                detail=f"A project with the name '{name}' already exists"
+            )
 
-        # Create and return the new project
-        return self._project_repo.create(name=name.strip())
+        return self._project_repo.create(data)
 
     def get_project(self, project_id: int):
         """
@@ -103,18 +105,19 @@ class ProjectService:
         if data is None:
             raise HTTPException(status_code=400, detail="data is required for project updates")
         
-        # Validate project data format
+        # Validate project data format (includes name validation)
         validate_project_data(data, mode="update")
         
-        # If name is being updated, validate it
-        if "name" in data:
-            name = data["name"]
-            if not name or name.strip() == "":
-                raise HTTPException(status_code=400, detail="Project name cannot be empty")
-            validate_unique_name(name, self._project_repo, exclude_id=project_id)
-            data["name"] = name.strip()  # Use trimmed version
-        
-        # Attempt to update the project
+        # If name is being updated, check uniqueness
+        name = data["name"]
+            
+            # Check name uniqueness (exclude current project)
+        existing_project = self._project_repo.get_by_name(name.strip())
+        if existing_project and existing_project.id != project_id:
+            raise HTTPException(
+                status_code=409, 
+                detail=f"A project with the name '{name}' already exists"
+            )        # Attempt to update the project
         project = self._project_repo.update(project_id, **data)
         if not project:
             raise HTTPException(status_code=404, detail="Project not found")
@@ -137,10 +140,14 @@ class ProjectService:
         if project_id is None:
             raise HTTPException(status_code=400, detail="project_id is required")
         
+        project = self._project_repo.get_by_id(project_id)
+        if not project:
+            raise HTTPException(status_code=404, detail="Project not found")
+        
         # Attempt to delete the project
         success = self._project_repo.delete(project_id)
         if not success:
-            raise HTTPException(status_code=404, detail="Project not found")
+            raise HTTPException(status_code=500, detail="Failed to delete project")
         return {"message": "Project deleted"}
 
     def get_all_citations_by_project(self, project_id: int):

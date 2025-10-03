@@ -36,13 +36,22 @@ class CitationService:
         # Validate required parameters
         if project_id is None:
             raise HTTPException(status_code=400, detail="project_id is required for citation creation")
-        if data is None:
-            raise HTTPException(status_code=400, detail="data is required for citation creation")
         
         # Verify that the parent project exists before creating citation
         project = self._project_repo.get_by_id(project_id)
         if not project:
-            raise HTTPException(status_code=404, detail="Project not found")   
+            raise HTTPException(status_code=404, detail="Project not found")  
+        
+        if data is None:
+            raise HTTPException(status_code=400, detail="data is required for citation creation")
+        
+        # Check if an identical citation already exists in this project
+        duplicate_citation = self._citation_repo.find_duplicate_citation_in_project(project_id, data)
+        if duplicate_citation:
+            raise HTTPException(
+                status_code=409, 
+                detail="An identical citation already exists in this project"
+            )
         
         # Validate the incoming citation data structure and required fields
         validate_citation_data(data, mode="create")
@@ -100,10 +109,34 @@ class CitationService:
         if not project:
             raise HTTPException(status_code=404, detail="Project not found")
         
-        # Verify the citation exists and get current state
+        # Verify the citation exists and get current state 
+        # also needs to check if its in the porject
         citation = self._citation_repo.get_by_id(citation_id)
         if not citation:
             raise HTTPException(status_code=404, detail="Citation not found")
+        
+        # Merge current citation data with updates and filter by type
+        merged_data = self._citation_repo.merge_citation_data(citation, data)
+        
+        # Check if the merged citation would create a duplicate in this project
+        # Convert merged_data to the format expected by find_duplicate_citation_in_project
+        search_data = {}
+        for key, value in merged_data.items():
+            if key == "authors" and isinstance(value, str):
+                # Convert JSON string back to list for the search
+                import json
+                search_data[key] = json.loads(value) if value else []
+            else:
+                search_data[key] = value
+        
+        # Find if there's already an identical citation in this project (excluding current one)
+        duplicate_citation = self._citation_repo.find_duplicate_citation_in_project(project_id, search_data)
+        if duplicate_citation and duplicate_citation.id != citation_id:
+            raise HTTPException(
+                status_code=409,
+                detail="An identical citation already exists in this project"
+            )
+
         
         # Detect if citation type is being changed (requires special validation)
         current_type = citation.type
@@ -116,7 +149,7 @@ class CitationService:
         # Perform the update operation
         updated = self._citation_repo.update(citation_id=citation_id, project_id=project_id, **data)
         if not updated:
-            raise HTTPException(status_code=400, detail="Update failed")
+            raise HTTPException(status_code=500, detail="Failed to update citation")
 
         return updated
 
@@ -153,7 +186,7 @@ class CitationService:
         # Attempt to delete the citation
         success = self._citation_repo.delete(citation_id=citation_id, project_id=project_id)
         if not success:
-            raise HTTPException(status_code=404, detail="Citation not found")
+            raise HTTPException(status_code=500, detail="Failed to delete citation")
         return {"message": "Citation deleted"}
 
     def format_citation(self, citation, format_type: str = "apa") -> str:

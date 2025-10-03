@@ -19,17 +19,17 @@ class ProjectRepository:
         """
         self._db = db
 
-    def create(self, name: str) -> Project:
+    def create(self, data: dict) -> Project:
         """
-        Create a new project with the given name.
+        Create a new project with the given data.
         
         Args:
-            name (str): The name of the project to create
+            data (dict): The project data containing name and other attributes
             
         Returns:
             Project: The newly created project instance
         """
-        project = Project(name=name)
+        project = Project(name=data["name"])
         self._db.add(project)
         self._db.commit()
         self._db.refresh(project)

@@ -1,8 +1,17 @@
 from sqlalchemy.orm import Session
 from models.citation import Citation
 from models.project_citation import ProjectCitation
-from config.citation_config import CitationConfig
+from config.citation_config import CitationFieldsConfig
 import json
+from sqlalchemy import inspect
+
+def _get_citation_valid_fields():
+    """Get valid fields from Project model, excluding id and created_at."""
+    mapper = inspect(Citation)
+    excluded_fields = {'id', 'created_at'}
+    return [column.key for column in mapper.columns if column.key not in excluded_fields]
+
+CITATION_VALID_FIELDS = _get_citation_valid_fields()
 
 class CitationRepository:
     """
@@ -111,6 +120,99 @@ class CitationRepository:
 
         return citation
     
+    def merge_citation_data(self, current_citation: Citation, update_data: dict) -> dict:
+        """
+        Helper function to merge current citation data with update data and filter by type.
+        
+        Args:
+            current_citation (Citation): The current citation object
+            update_data (dict): New data to merge
+            
+        Returns:
+            dict: Merged and filtered citation data ready for comparison or creation
+        """
+        # Prepare update data with proper JSON encoding for authors
+        processed_updates = {}
+        for key, value in update_data.items():
+            if value is not None:
+                if key == "authors" and isinstance(value, list):
+                    # Convert authors list to JSON string for database storage
+                    processed_updates[key] = json.dumps(value)
+                else:
+                    processed_updates[key] = value
+
+        # Get current citation data for comparison and merging
+        current_data = {
+            'type': current_citation.type,
+            'title': current_citation.title,
+            'authors': current_citation.authors,
+            'year': current_citation.year,
+            'publisher': current_citation.publisher,
+            'journal': current_citation.journal,
+            'volume': current_citation.volume,
+            'issue': current_citation.issue,
+            'pages': current_citation.pages,
+            'doi': current_citation.doi,
+            'url': current_citation.url,
+            'access_date': current_citation.access_date,
+            'place': current_citation.place,
+            'edition': current_citation.edition,
+        }
+        
+        # Merge current data with updates, prioritizing new data
+        final_data = {**current_data}
+        for key, value in processed_updates.items():
+            final_data[key] = value  
+
+        # Filter fields by citation type - set to None all fields not associated with the type
+        citation_type = final_data.get('type', current_citation.type)
+        config = CitationFieldsConfig()
+        if config.is_valid_type(citation_type):
+            allowed_fields = config.get_required_fields(citation_type)
+            for field in CITATION_VALID_FIELDS:
+                if field not in allowed_fields:
+                    final_data[field] = None
+        
+        return final_data
+    
+    def find_duplicate_citation_in_project(self, project_id: int, data: dict) -> Citation | None:
+        """
+        Find if an identical citation already exists in a specific project.
+        
+        Args:
+            project_id (int): ID of the project to search in
+            data (dict): Citation data to search for
+            
+        Returns:
+            Citation | None: The duplicate citation if found, None otherwise
+        """
+        # Convert authors to JSON for comparison
+        authors_json = json.dumps(data.get("authors"))
+        
+        # Query for identical citation within the specific project
+        return (
+            self._db.query(Citation)
+            .join(ProjectCitation, Citation.id == ProjectCitation.citation_id)
+            .filter(
+                ProjectCitation.project_id == project_id,
+                Citation.type == data.get("type"),
+                Citation.title == data.get("title"),
+                Citation.authors == authors_json,
+                Citation.year == data.get("year"),
+                Citation.publisher == data.get("publisher"),
+                Citation.journal == data.get("journal"),
+                Citation.volume == data.get("volume"),
+                Citation.issue == data.get("issue"),
+                Citation.pages == data.get("pages"),
+                Citation.doi == data.get("doi"),
+                Citation.url == data.get("url"),
+                Citation.access_date == data.get("access_date"),
+                Citation.place == data.get("place"),
+                Citation.edition == data.get("edition")
+            )
+            .first()
+        )
+    
     def get_by_id(self, citation_id: int) -> Citation | None:
         """
         Retrieve a citation by its unique identifier.
@@ -209,47 +311,8 @@ class CitationRepository:
         if not citation:
             return None
 
-        # Prepare update data with proper JSON encoding for authors
-        updated_data = {}
-        for key, value in kwargs.items():
-            if value is not None:
-                if key == "authors" and isinstance(value, list):
-                    # Convert authors list to JSON string for database storage
-                    updated_data[key] = json.dumps(value)
-                else:
-                    updated_data[key] = value
-
-        # Get current citation data for comparison and merging
-        current_data = {
-            'type': citation.type,
-            'title': citation.title,
-            'authors': citation.authors,
-            'year': citation.year,
-            'publisher': citation.publisher,
-            'journal': citation.journal,
-            'volume': citation.volume,
-            'issue': citation.issue,
-            'pages': citation.pages,
-            'doi': citation.doi,
-            'url': citation.url,
-            'access_date': citation.access_date,
-            'place': citation.place,
-            'edition': citation.edition,
-        }
-        
-        # Merge current data with updates, prioritizing new data
-        final_data = {**current_data}
-        for key, value in updated_data.items():
-            final_data[key] = value  
-
-        # Filter fields by citation type - set to None all fields not associated with the type
-        citation_type = final_data.get('type', citation.type)
-        config = CitationConfig()
-        if config.is_valid_type(citation_type):
-            allowed_fields = config.get_required_fields(citation_type)
-            for field in config.get_all_fields():
-                if field not in allowed_fields:
-                    final_data[field] = None
+        # Use the helper function to merge and process the data
+        final_data = self.merge_citation_data(citation, kwargs)
 
         # Check if an identical citation already exists to avoid duplicates
         existing_citation = (

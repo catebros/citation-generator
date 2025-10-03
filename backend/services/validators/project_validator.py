@@ -1,5 +1,15 @@
 from fastapi import HTTPException
 from typing import Dict, Any, Optional
+from models.project import Project
+from sqlalchemy import inspect
+
+def _get_project_valid_fields():
+    """Get valid fields from Project model, excluding id and created_at."""
+    mapper = inspect(Project)
+    excluded_fields = {'id', 'created_at'}
+    return [column.key for column in mapper.columns if column.key not in excluded_fields]
+
+PROJECT_VALID_FIELDS = _get_project_valid_fields()
 
 def validate_project_data(data: Dict[str, Any], mode: str = "create"):
     """
@@ -15,9 +25,59 @@ def validate_project_data(data: Dict[str, Any], mode: str = "create"):
     Raises:
         HTTPException: If validation fails
     """
+    _validate_fields_by_mode(data, mode)
     _validate_field_formats(data)
     
     return True
+
+def _validate_fields_by_mode(data: Dict[str, Any], mode: str):
+    """Validate fields based on operation mode."""
+    if mode == "create":
+        _validate_create_mode_fields(data)
+    elif mode == "update":
+        _validate_update_mode_fields(data)
+
+def _validate_create_mode_fields(data: Dict[str, Any]):
+    """
+    Validate fields for create mode - all required fields must be present and only 
+    valid fields are allowed.
+    """
+    # Check for missing required fields (name is required for projects)
+    required_fields = ["name"]
+    missing = [field for field in required_fields if field not in data]
+    if missing:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Missing required project fields: {', '.join(missing)}"
+        )
+    
+    # Check for invalid fields (fields not allowed for projects)
+    provided_fields = set(data.keys())
+    valid_fields = set(PROJECT_VALID_FIELDS)
+    invalid_fields = provided_fields - valid_fields
+    
+    if invalid_fields:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid fields for project: {', '.join(invalid_fields)}. "
+                   f"Valid fields: {', '.join(sorted(valid_fields))}"
+        )
+
+def _validate_update_mode_fields(data: Dict[str, Any]):
+    """
+    Validate fields for update mode - all provided fields must be valid for projects.
+    """
+    # Check for invalid fields (fields not allowed for projects)
+    provided_fields = set(data.keys())
+    valid_fields = set(PROJECT_VALID_FIELDS)
+    invalid_fields = provided_fields - valid_fields
+    
+    if invalid_fields:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid fields for project: {', '.join(invalid_fields)}. "
+                   f"Valid fields: {', '.join(sorted(valid_fields))}"
+        )
 
 def _validate_field_formats(data: Dict[str, Any]):
     """Validate format of all present fields."""
@@ -26,35 +86,10 @@ def _validate_field_formats(data: Dict[str, Any]):
     }
     
     for field, value in data.items():
-        if field in field_validators and value:
+        if field in field_validators:
             field_validators[field](value, field)
 
 def _validate_name(name: Any, field_name: str):
     """Validate name field - must be a non-empty string."""
     if not isinstance(name, str) or not name.strip():
         raise HTTPException(status_code=400, detail="Project name must be a non-empty string")
-
-def validate_unique_name(name: str, project_repo, exclude_id: Optional[int] = None):
-    """
-    Validate that project name is unique.
-    
-    Args:
-        name: Project name to validate
-        project_repo: Project repository instance
-        exclude_id: Project ID to exclude from uniqueness check (for updates)
-    
-    Returns:
-        True if name is unique
-        
-    Raises:
-        HTTPException: If name already exists
-    """
-    existing_project = project_repo.get_by_name(name.strip())
-    
-    if existing_project and (exclude_id is None or existing_project.id != exclude_id):
-        raise HTTPException(
-            status_code=400, 
-            detail="Project with this name already exists"
-        )
-    
-    return True
