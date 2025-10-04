@@ -1,5 +1,6 @@
 from .base_citation_formatter import BaseCitationFormatter
 from typing import TYPE_CHECKING
+from datetime import datetime
 
 if TYPE_CHECKING:
     from models.citation import Citation
@@ -9,42 +10,52 @@ class MLAFormatter(BaseCitationFormatter):
     
     def format_citation(self) -> str:
         """Generate MLA format citation."""
-        authors = self.get_authors_list()
-        formatted_authors = self.format_authors_mla(authors)
+        authors = self._get_authors_list()
+        formatted_authors = self._format_authors(authors)
         
         if self.citation.type == "book":
-            return self.format_book(formatted_authors)
+            return self._format_book(formatted_authors)
         elif self.citation.type == "article":
-            return self.format_article(formatted_authors)
+            return self._format_article(formatted_authors)
         elif self.citation.type == "website":
-            return self.format_website(formatted_authors)
+            return self._format_website(formatted_authors)
         elif self.citation.type == "report":
-            return self.format_report(formatted_authors)
+            return self._format_report(formatted_authors)
         else:
             return f"Unsupported citation type: {self.citation.type}"
     
-    def format_authors_mla(self, authors: list) -> str:
-        """Format authors for MLA style."""
+    def _format_authors(self, authors: list) -> str:
+        """Format authors for MLA style.
+        MLA rules:
+        - 1 author: Last, First
+        - 2 authors: Last, First, and First Last
+        - 3 authors: Last, First, First Last, and First Last
+        - 4+ authors: Last, First, et al.
+        """
         if not authors:
             return ""
         
-        # Normalize all author names to MLA format
-        normalized_authors = [self._normalize_author_name_mla(author) for author in authors]
+        # First author is always in "Last, First" format
+        first_author = self._normalize_author_name(authors[0])
         
-        if len(normalized_authors) == 1:
-            return normalized_authors[0]
-        elif len(normalized_authors) == 2:
-            # First author: Last, First; Second author: First Last
-            return f"{normalized_authors[0]}, and {self._reverse_name(normalized_authors[1])}"
+        if len(authors) == 1:
+            return first_author
+        elif len(authors) == 2:
+            # First author: Last, First; Second author: First Last (keep original format)
+            second_author = authors[1].strip()
+            return f"{first_author}, and {second_author}"
+        elif len(authors) == 3:
+            # Three authors: First author: Last, First; Others: First Last (keep original format)
+            second_author = authors[1].strip()
+            third_author = authors[2].strip()
+            return f"{first_author}, {second_author}, and {third_author}"
         else:
-            # First author: Last, First; Others: First Last
-            others = [self._reverse_name(author) for author in normalized_authors[1:]]
-            return f"{normalized_authors[0]}, {', '.join(others[:-1])}, and {others[-1]}"
+            # 4+ authors: First author + et al.
+            return f"{first_author}, et al."
     
-    def _normalize_author_name_mla(self, author: str) -> str:
-        """Convert author name to MLA format.
-        First author: 'Last, First'
-        Other authors: 'First Last'
+    def _normalize_author_name(self, author: str) -> str:
+        """Convert author name to MLA format for the first author.
+        Converts 'First Last' to 'Last, First'
         """
         author = author.strip()
         if not author:
@@ -61,14 +72,27 @@ class MLAFormatter(BaseCitationFormatter):
         # Single name, return as is
         return author
     
-    def _reverse_name(self, name: str) -> str:
-        """Convert 'Last, First' back to 'First Last' for non-first authors."""
-        if ', ' in name:
-            last, first = name.split(', ', 1)
-            return f"{first} {last}"
-        return name
+    def _format_access_date(self, date_str: str) -> str:
+        """Convert YYYY-MM-DD format to MLA format: Accessed Day Mon. Year.
+        Example: '2025-10-02' -> 'Accessed 2 Oct. 2025'
+        """
+        try:
+            dt = datetime.strptime(date_str, "%Y-%m-%d")
+            # Format with day without leading zero, abbreviated month with period, year
+            day = str(dt.day)  # Remove leading zero
+            month_map = {
+                1: 'Jan.', 2: 'Feb.', 3: 'Mar.', 4: 'Apr.', 
+                5: 'May', 6: 'Jun.', 7: 'Jul.', 8: 'Aug.',
+                9: 'Sep.', 10: 'Oct.', 11: 'Nov.', 12: 'Dec.'
+            }
+            month = month_map[dt.month]
+            year = str(dt.year)
+            return f"Accessed {day} {month} {year}"
+        except ValueError:
+            # Fallback if date format is not as expected
+            return f"Accessed {date_str}"
     
-    def format_book(self, authors: str) -> str:
+    def _format_book(self, authors: str) -> str:
         """Generate MLA book citation.
         Format: Author, First Name. Title of Book. Edition (if not first), Publisher, Year.
         """
@@ -83,7 +107,7 @@ class MLAFormatter(BaseCitationFormatter):
         
         # Edition (if not first)
         if self.citation.edition and self.citation.edition != 1:
-            edition_text = self.normalize_edition(self.citation.edition)
+            edition_text = self._normalize_edition(self.citation.edition)
             if edition_text:
                 citation_parts.append(f"{edition_text},")
         
@@ -99,7 +123,7 @@ class MLAFormatter(BaseCitationFormatter):
         
         return " ".join(citation_parts)
     
-    def format_article(self, authors: str) -> str:
+    def _format_article(self, authors: str) -> str:
         """Generate MLA article citation.
         Format: Author(s). "Title of Article." Journal Name, vol. #, no. #, Year, pp. xxx–xxx. DOI/URL.
         """
@@ -144,7 +168,7 @@ class MLAFormatter(BaseCitationFormatter):
         return " ".join(citation_parts)
 
         
-    def format_website(self, authors: str) -> str:
+    def _format_website(self, authors: str) -> str:
         """Generate MLA website citation.
         Con fecha: Author. "Title of Webpage." Website Name, Date, URL.
         Sin fecha: Author. "Title of Webpage." Website Name, URL. Accessed Day Month Year.
@@ -173,14 +197,15 @@ class MLAFormatter(BaseCitationFormatter):
             if self.citation.url:
                 citation_parts.append(f"{self.citation.url}.")
             if self.citation.access_date:
-                citation_parts.append(f"Accessed {self.citation.access_date}.")
+                formatted_date = self._format_access_date(self.citation.access_date)
+                citation_parts.append(f"{formatted_date}.")
             else:
                 citation_parts.append("Accessed [Date].")
         
         return " ".join(citation_parts)
 
     
-    def format_report(self, authors: str) -> str:
+    def _format_report(self, authors: str) -> str:
         """Generate MLA report citation.
         Format: Author. *Title of Report*. Institution/Publisher, Year. URL.
         """

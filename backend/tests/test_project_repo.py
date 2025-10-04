@@ -118,7 +118,7 @@ def test_delete_project_with_unique_citations(db_session):
 
     project = project_repo.create({"name": "Project with Unique Citations"})
     
-    # Crear citas únicas para este proyecto
+    # Create unique citations for this project
     citation1 = citation_repo.create(
         project_id=project.id,
         type="book",

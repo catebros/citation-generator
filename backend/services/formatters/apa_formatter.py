@@ -9,22 +9,28 @@ class APAFormatter(BaseCitationFormatter):
     
     def format_citation(self) -> str:
         """Generate APA format citation."""
-        authors = self.get_authors_list()
-        formatted_authors = self.format_authors_apa(authors)
+        authors = self._get_authors_list()
+        formatted_authors = self._format_authors(authors)
         
         if self.citation.type == "book":
-            return self.format_book(formatted_authors)
+            return self._format_book(formatted_authors)
         elif self.citation.type == "article":
-            return self.format_article(formatted_authors)
+            return self._format_article(formatted_authors)
         elif self.citation.type == "website":
-            return self.format_website(formatted_authors)
+            return self._format_website(formatted_authors)
         elif self.citation.type == "report":
-            return self.format_report(formatted_authors)
+            return self._format_report(formatted_authors)
         else:
             return f"Unsupported citation type: {self.citation.type}"
     
-    def format_authors_apa(self, authors: list) -> str:
-        """Format authors for APA style with proper initials."""
+    def _format_authors(self, authors: list) -> str:
+        """Format authors for APA style with proper initials.
+        APA 7 rules:
+        - 1 author: Author, A.
+        - 2 authors: Author, A., & Author, B.
+        - 3-20 authors: Author, A., Author, B., & Author, C.
+        - 21+ authors: Author, A., Author, B., ..., & Author, Z.
+        """
         if not authors:
             return ""
         
@@ -35,9 +41,14 @@ class APAFormatter(BaseCitationFormatter):
             return normalized_authors[0]
         elif len(normalized_authors) == 2:
             return f"{normalized_authors[0]}, & {normalized_authors[1]}"
-        else:
-            # Three or more authors: use comma separation with & before last
+        elif len(normalized_authors) <= 20:
+            # 3-20 authors: use comma separation with & before last
             return ", ".join(normalized_authors[:-1]) + f", & {normalized_authors[-1]}"
+        else:
+            # 21+ authors: first 19 + "..." + last author (APA 7 rule)
+            first_19 = ", ".join(normalized_authors[:19])
+            last_author = normalized_authors[-1]
+            return f"{first_19}, ..., & {last_author}"
     
     def _normalize_author_name(self, author: str) -> str:
         """Convert author name to APA format with initials.
@@ -58,7 +69,7 @@ class APAFormatter(BaseCitationFormatter):
         # Single name, return as is
         return author
     
-    def format_book(self, authors: str) -> str:
+    def _format_book(self, authors: str) -> str:
         """Generate APA book citation."""
         citation_parts = []
         
@@ -75,10 +86,10 @@ class APAFormatter(BaseCitationFormatter):
         
         # Title with edition if available
         if self.citation.title:
-            title_part = f"*{self.citation.title}*"
+            title_part = f"<i>{self.citation.title}</i>"
             if self.citation.edition and self.citation.edition != 1:
                 # Normalize edition format for APA
-                edition_text = self.normalize_edition(self.citation.edition)
+                edition_text = self._normalize_edition(self.citation.edition)
                 if edition_text:
                     title_part += f" ({edition_text})"
             citation_parts.append(title_part)
@@ -94,7 +105,7 @@ class APAFormatter(BaseCitationFormatter):
             return result
         return ""
     
-    def format_article(self, authors: str) -> str:
+    def _format_article(self, authors: str) -> str:
         """Generate APA article citation."""
         citation_parts = []
         
@@ -116,10 +127,10 @@ class APAFormatter(BaseCitationFormatter):
         journal_part = ""
         if self.citation.journal:
             # Journal name should be in italics
-            journal_part = f"*{self.citation.journal}*"
+            journal_part = f"<i>{self.citation.journal}</i>"
             if self.citation.volume:
-                # Volume should NOT be in separate italics
-                journal_part += f", {self.citation.volume}"
+                # Volume should also be in italics according to APA
+                journal_part += f", <i>{self.citation.volume}</i>"
                 if self.citation.issue:
                     # Issue number in regular text within parentheses
                     journal_part += f"({self.citation.issue})"
@@ -146,7 +157,7 @@ class APAFormatter(BaseCitationFormatter):
             return result
         return ""
     
-    def format_website(self, authors: str) -> str:
+    def _format_website(self, authors: str) -> str:
         """Generate APA website citation."""
         citation_parts = []
         
@@ -166,7 +177,7 @@ class APAFormatter(BaseCitationFormatter):
         
         # Add website name (publisher field) - Nombre del sitio
         if self.citation.publisher:
-            citation_parts.append(f"*{self.citation.publisher}*")
+            citation_parts.append(f"<i>{self.citation.publisher}</i>")
         
         # For websites, we use the URL directly without "Retrieved from"
         if self.citation.url:
@@ -182,7 +193,7 @@ class APAFormatter(BaseCitationFormatter):
             return result
         return ""
     
-    def format_report(self, authors: str) -> str:
+    def _format_report(self, authors: str) -> str:
         """Generate APA report citation."""
         citation_parts = []
         
@@ -199,7 +210,7 @@ class APAFormatter(BaseCitationFormatter):
             
         if self.citation.title:
             # Title with report type specification
-            title_part = f"*{self.citation.title}* (report)"
+            title_part = f"<i>{self.citation.title}</i> [Report]"
             citation_parts.append(title_part)
         
         # Add institution/organization (publisher)
