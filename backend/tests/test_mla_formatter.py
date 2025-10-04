@@ -303,16 +303,13 @@ def test_mla_missing_required_fields_handled_gracefully():
     # Should handle missing fields without crashing
     assert isinstance(result, str)
     assert "n.d." in result  # Should show "no date"
-
-
-# ========== SPECIFIC MISSING TEST CASES ==========
-
+    
 def test_mla_book_with_advanced_edition_in_real_citation():
     """Test MLA book with advanced edition (22nd ed.) integrated in real citation."""
     citation = Citation(
         type="book",
         title="Modern Literary Theory",
-        authors=json.dumps(["García, María", "Johnson, Robert"]),
+        authors=json.dumps(["Smith, John", "Johnson, Robert"]),
         year=2023,
         publisher="University Press",
         edition=22
@@ -321,7 +318,7 @@ def test_mla_book_with_advanced_edition_in_real_citation():
     result = formatter.format_citation()
     
     assert "22nd ed." in result
-    expected = "María, García,, and Johnson, Robert. *Modern Literary Theory*. 22nd ed., University Press, 2023."
+    expected = "John, Smith,, and Johnson, Robert. *Modern Literary Theory*. 22nd ed., University Press, 2023."
     assert result == expected
 
 

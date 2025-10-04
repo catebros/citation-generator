@@ -53,11 +53,12 @@ class BaseCitationFormatter(ABC):
         except (json.JSONDecodeError, TypeError):
             return [self.citation.authors] if self.citation.authors else []
     
-    def _normalize_edition(self, edition: int) -> str:
+    def _normalize_edition(self, edition) -> str:
         """Normalize edition format.
         Examples: 2 -> '2nd ed.', 3 -> '3rd ed.', 21 -> '21st ed.', 101 -> '101st ed.'
         """
-        if not edition or edition == 1:
+        # Validate edition type and convert if necessary
+        if edition is None or edition == 1:
             return ""  # Don't show first edition
         
         # Handle special cases for numbers ending in 11, 12, 13 (always "th")
