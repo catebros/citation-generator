@@ -1,8 +1,13 @@
 # backend/tests/test_database.py
 import pytest
+import os
 from unittest.mock import patch, MagicMock
 from sqlalchemy.orm import Session
-from db.database import get_db, LocalSession, engine, DatabaseEngine
+from sqlalchemy import create_engine
+from db.database import get_db, LocalSession, engine, DatabaseEngine, TEST_DATABASE_URL
+
+# Ensure we're using test database for these tests
+os.environ["DATABASE_URL"] = TEST_DATABASE_URL
 
 @pytest.fixture
 def consume_generator():
@@ -14,6 +19,15 @@ def consume_generator():
         except StopIteration:
             pass
     return _consume
+
+@pytest.fixture(autouse=True)
+def reset_database_state():
+    """Reset database engine state before and after each test."""
+    # Reset before test
+    DatabaseEngine.reset_instance()
+    yield
+    # Reset after test to not interfere with other tests
+    DatabaseEngine.reset_instance()
 
 def test_engine_configuration():
     """Test that the database engine is properly configured."""
@@ -131,8 +145,7 @@ def test_database_session_isolation(consume_generator):
 
 def test_database_engine_singleton_behavior():
     """Test that DatabaseEngine instances are the same object."""
-    # Reset to ensure clean state
-    DatabaseEngine.reset_instance()
+    # This fixture already resets state, so we don't need to do it manually
     
     engine1 = DatabaseEngine()
     engine2 = DatabaseEngine()
@@ -143,9 +156,6 @@ def test_database_engine_singleton_behavior():
 
 def test_reset_instance_creates_new_engine():
     """Test that reset_instance creates a new engine and disposes the old one."""
-    # Reset to ensure clean state
-    DatabaseEngine.reset_instance()
-    
     # Create first engine instance
     db_engine1 = DatabaseEngine()
     engine1 = db_engine1.get_engine()
@@ -168,7 +178,7 @@ def test_reset_instance_creates_new_engine():
 
 def test_reset_instance_without_existing_engine():
     """Test that reset_instance works even when no engine exists."""
-    # Reset to ensure clean state
+    # Reset to ensure clean state for this specific test
     DatabaseEngine.reset_instance()
     
     # This should not raise any exceptions
@@ -181,10 +191,7 @@ def test_reset_instance_without_existing_engine():
 
 def test_local_session_uses_singleton_engine():
     """Test that LocalSession is using the singleton engine instance."""
-    # Reset to ensure clean state
-    DatabaseEngine.reset_instance()
-    
-    # Get the singleton engine
+    # Get the singleton engine (fixture already reset state)
     singleton_engine = DatabaseEngine().get_engine()
     
     # Create a session using the session factory
@@ -201,10 +208,7 @@ def test_local_session_uses_singleton_engine():
 
 def test_multiple_database_engines_share_same_engine():
     """Test that multiple DatabaseEngine instances share the same underlying engine."""
-    # Reset to ensure clean state
-    DatabaseEngine.reset_instance()
-    
-    # Create multiple DatabaseEngine instances
+    # Create multiple DatabaseEngine instances (fixture already reset state)
     db_engine1 = DatabaseEngine()
     db_engine2 = DatabaseEngine()
     db_engine3 = DatabaseEngine()
@@ -220,7 +224,7 @@ def test_multiple_database_engines_share_same_engine():
 
 def test_module_level_engine_uses_singleton():
     """Test that the module-level engine getter uses the singleton pattern."""
-    # Reset to ensure clean state
+    # Get a fresh singleton engine (fixture already reset state)
     DatabaseEngine.reset_instance()
     
     # Get a fresh singleton engine

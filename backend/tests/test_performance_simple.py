@@ -9,9 +9,6 @@ import statistics
 from fastapi.testclient import TestClient
 from main import app
 
-# Test client
-client = TestClient(app)
-
 def test_stress_create_100_citations():
     """
     Stress test: create 100 citations and measure response time.
@@ -23,6 +20,11 @@ def test_stress_create_100_citations():
     - Throughput (citations per second)
     """
     print("\nStarting stress test: 100 citations")
+    
+    # Test client - will use test database automatically
+    from fastapi.testclient import TestClient
+    from main import app
+    client = TestClient(app)
     
     # Create project for citations
     project_name = f"Stress Test Project {uuid.uuid4().hex[:8]}"
@@ -54,7 +56,7 @@ def test_stress_create_100_citations():
         # Create common base data
         base_data = {
             "type": citation_type,
-            "authors": [f"Author {i+1}", f"Co-Author {i+1}"],
+            "authors": [f"Author Smith {chr(65 + i % 26)}", f"Co-Author Jones {chr(65 + (i+1) % 26)}"],
             "title": f"Performance Test Citation {i+1}: {uuid.uuid4().hex[:6]}",
             "year": 2020 + (i % 5),  # Years 2020-2024
         }
@@ -62,13 +64,13 @@ def test_stress_create_100_citations():
         # Add specific fields according to type
         if citation_type == "book":
             citation_data = {**base_data, **{
-                "publisher": f"{publisher} {i+1}",
-                "place": f"City {i+1}",
+                "publisher": f"{publisher}",
+                "place": ["New York", "London", "Paris", "Tokyo", "Berlin"][i % 5],
                 "edition": (i % 3) + 1
             }}
         elif citation_type == "article":
             citation_data = {**base_data, **{
-                "journal": f"Journal of Testing {i+1}",
+                "journal": ["Nature", "Science", "Cell", "PNAS", "Lancet"][i % 5],
                 "volume": (i % 10) + 1,  # Integer, not string
                 "issue": f"{(i % 4) + 1}",
                 "pages": f"{i*10}-{i*10+20}",
@@ -76,18 +78,16 @@ def test_stress_create_100_citations():
             }}
         elif citation_type == "website":
             citation_data = {**base_data, **{
-                "publisher": f"{publisher} {i+1}",
+                "publisher": f"{publisher}",
                 "url": f"https://example{i+1}.com",
                 "access_date": "2023-01-01"
             }}
         elif citation_type == "report":
-            citation_data = {**base_data, **{
-                "publisher": f"{publisher} {i+1}",
-                "place": f"Report City {i+1}",
-                "url": f"https://reports{i+1}.com"
-            }}
-        
-        # Measure time for this specific citation
+                citation_data = {**base_data, **{
+                    "publisher": f"{publisher}",
+                    "place": ["New York", "London", "Paris", "Tokyo", "Berlin"][i % 5],
+                    "url": f"https://reports{i+1}.com"
+                }}        # Measure time for this specific citation
         citation_start = time.time()
         
         response = client.post(f"/projects/{project_id}/citations", json=citation_data)
@@ -183,6 +183,11 @@ def test_stress_concurrent_bibliography():
     Stress test for bibliography generation with multiple citations.
     """
     print("\nStarting stress test: bibliography with 30 citations")
+
+    # Test client - will use test database automatically
+    from fastapi.testclient import TestClient
+    from main import app
+    client = TestClient(app)
     
     # Create project
     project_name = f"Bibliography Stress Test {uuid.uuid4().hex[:8]}"
@@ -194,44 +199,44 @@ def test_stress_concurrent_bibliography():
     
     # Create 30 citations of different types (more reliable)
     print("Creating 30 citations for bibliography...")
-    
+
     citation_types_data = [
-        # Books (10 citations)
-        *[{
-            "type": "book",
-            "authors": [f"Book Author {i+1}"],
-            "title": f"Bibliography Test Book {i+1}",
-            "year": 2020 + (i % 5),
-            "publisher": f"Publisher {i+1}",
-            "place": f"City {i+1}",
-            "edition": 1
-        } for i in range(10)],
-        
-        # Articles (10 citations)
-        *[{
-            "type": "article",
-            "authors": [f"Article Author {i+1}"],
-            "title": f"Bibliography Test Article {i+1}",
-            "year": 2020 + (i % 5),
-            "journal": f"Journal {i+1}",
-            "volume": (i % 5) + 1,
-            "issue": f"{(i % 3) + 1}",
-            "pages": f"{i*5}-{i*5+10}",
-            "doi": f"10.1000/article{i+1}"
-        } for i in range(10)],
-        
-        # Websites (10 citations)
-        *[{
-            "type": "website",
-            "authors": [f"Web Author {i+1}"],
-            "title": f"Bibliography Test Website {i+1}",
-            "year": 2020 + (i % 5),
-            "publisher": f"Web Publisher {i+1}",
-            "url": f"https://example{i+1}.com",
-            "access_date": "2023-01-01"
-        } for i in range(10)]
-    ]
-    
+            # Books (10 citations)
+            *[{
+                "type": "book",
+                "authors": [f"Book Author {chr(65 + i % 26)}"],
+                "title": f"Bibliography Test Book {i+1}",
+                "year": 2020 + (i % 5),
+                "publisher": ["Academic Press", "Tech Publisher", "Research Inc", "Education Corp", "University Press"][i % 5],
+                "place": ["New York", "London", "Paris", "Tokyo", "Berlin"][i % 5],
+                "edition": 1
+            } for i in range(10)],
+
+            # Articles (10 citations)
+            *[{
+                "type": "article",
+                "authors": [f"Article Author {chr(65 + i % 26)}"],
+                "title": f"Bibliography Test Article {i+1}",
+                "year": 2020 + (i % 5),
+                "journal": ["Nature", "Science", "Cell", "PNAS", "Lancet"][i % 5],
+                "volume": (i % 5) + 1,
+                "issue": f"{(i % 3) + 1}",
+                "pages": f"{i*5}-{i*5+10}",
+                "doi": f"10.1000/article{i+1}"
+            } for i in range(10)],
+
+            # Websites (10 citations)
+            *[{
+                "type": "website",
+                "authors": [f"Web Author {chr(65 + i % 26)}"],
+                "title": f"Bibliography Test Website {i+1}",
+                "year": 2020 + (i % 5),
+                "publisher": ["Web Corp", "Digital Media", "Online Press", "Internet Inc", "Web Solutions"][i % 5],
+                "url": f"https://example{i+1}.com",
+                "access_date": "2023-01-01"
+            } for i in range(10)]
+        ]
+
     for i, citation_data in enumerate(citation_types_data):
         response = client.post(f"/projects/{project_id}/citations", json=citation_data)
         if response.status_code != 201:
