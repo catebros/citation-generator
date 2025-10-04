@@ -8,3 +8,5 @@ citations.db
 
 /.pytest_cache
 /backend/.pytest_cache
+
+/frontend/node_modules
