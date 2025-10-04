@@ -125,7 +125,7 @@ def test_bibliography_generation():
     citations = [
         {
             "type": "book",
-            "authors": ["Smith J."],
+            "authors": ["John Smith"],
             "title": "Research Methods",
             "year": 2023,
             "publisher": "Academic Press",
@@ -134,7 +134,7 @@ def test_bibliography_generation():
         },
         {
             "type": "article", 
-            "authors": ["Jones, M."],
+            "authors": ["Maria Jones"],
             "title": "Data Analysis",
             "year": 2023,
             "journal": "Research Journal",
@@ -236,7 +236,7 @@ def test_create_citation_with_optional_fields():
     # Create article citation without volume and issue (optional in some cases)
     citation_data = {
         "type": "article",
-        "authors": ["Smith, J."],
+        "authors": ["John Smith"],
         "title": "Research Without Volume",
         "year": 2023,
         "journal": "Test Journal",

@@ -40,19 +40,19 @@ def test_create_project_and_citations_workflow():
         citations_data = [
             {
                 "type": "book",
-                "authors": ["Author 1"],
-                "title": "Book 1",
+                "authors": ["Author Smith"],
+                "title": "Book One",
                 "year": 2023,
-                "publisher": "Publisher 1",
+                "publisher": "Publisher Alpha",
                 "place": "New York",
                 "edition": 1
             },
             {
                 "type": "article",
-                "authors": ["Author 2"],
-                "title": "Article 1",
+                "authors": ["Author Jones"],
+                "title": "Article One",
                 "year": 2023,
-                "journal": "Journal 1",
+                "journal": "Journal Alpha",
                 "volume": 10,
                 "issue": "1",
                 "pages": "1-10",
@@ -89,8 +89,8 @@ def test_create_project_and_citations_workflow():
         assert citations_response.status_code == 200
         citations_list = citations_response.json()
         assert len(citations_list) == 2
-        assert citations_list[0]["title"] == "Book 1"
-        assert citations_list[1]["title"] == "Article 1"
+        assert citations_list[0]["title"] == "Book One"
+        assert citations_list[1]["title"] == "Article One"
         
     finally:
         # Cleanup
@@ -135,8 +135,8 @@ def test_generate_bibliography_with_citation_count():
         "project_id": 1,
         "format_type": "apa",
         "bibliography": [
-            "Author 1. (2023). Book Title. Publisher.",
-            "Author 2. (2023). Article Title. Journal Name."
+            "Author Smith. (2023). Book Title. Publisher.",
+            "Author Jones. (2023). Article Title. Journal Name."
         ],
         "citation_count": 2
     }

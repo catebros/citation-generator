@@ -165,7 +165,7 @@ def test_get_project_citations_success():
     mock_citation1.id = 1
     mock_citation1.type = "book"
     mock_citation1.title = "Book 1"
-    mock_citation1.authors = '["Author 1"]'  # JSON string
+    mock_citation1.authors = '["Author Smith"]'  # JSON string
     mock_citation1.year = 2023
     mock_citation1.journal = None
     
@@ -173,7 +173,7 @@ def test_get_project_citations_success():
     mock_citation2.id = 2
     mock_citation2.type = "article"
     mock_citation2.title = "Article 1"
-    mock_citation2.authors = '["Author 2"]'  # JSON string
+    mock_citation2.authors = '["Author Jones"]'  # JSON string
     mock_citation2.year = 2024
     mock_citation2.journal = "Test Journal"
     

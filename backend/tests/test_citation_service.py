@@ -163,20 +163,20 @@ def test_update_citation_duplicate_detected(citation_service, project_service):
     # Create two citations
     citation1_data = {
         "type": "book",
-        "title": "Book 1",
-        "authors": ["Author 1"],
+        "title": "Book One",
+        "authors": ["Author Smith"],
         "year": 2020,
-        "publisher": "Publisher 1",
-        "place": "City 1",
+        "publisher": "Publisher Alpha",
+        "place": "New York",
         "edition": 1
     }
     citation2_data = {
         "type": "book",
-        "title": "Book 2",
-        "authors": ["Author 2"],
+        "title": "Book Two",
+        "authors": ["Author Jones"],
         "year": 2021,
-        "publisher": "Publisher 2",
-        "place": "City 2",
+        "publisher": "Publisher Beta",
+        "place": "London",
         "edition": 2
     }
     
