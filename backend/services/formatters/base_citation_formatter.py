@@ -9,7 +9,7 @@ class BaseCitationFormatter(ABC):
     
     def __init__(self, citation: 'Citation'):
         """Initialize formatter with citation data."""
-        self.citation = citation
+        self._citation = citation
     
     @abstractmethod
     def format_citation(self) -> str:
@@ -49,9 +49,9 @@ class BaseCitationFormatter(ABC):
     def _get_authors_list(self) -> list:
         """Parse authors from JSON string to list."""
         try:
-            return json.loads(self.citation.authors) if self.citation.authors else []
+            return json.loads(self._citation.authors) if self._citation.authors else []
         except (json.JSONDecodeError, TypeError):
-            return [self.citation.authors] if self.citation.authors else []
+            return [self._citation.authors] if self._citation.authors else []
     
     def _normalize_edition(self, edition) -> str:
         """Normalize edition format.

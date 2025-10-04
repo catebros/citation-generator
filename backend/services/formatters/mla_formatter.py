@@ -9,6 +9,10 @@ if TYPE_CHECKING:
 class MLAFormatter(BaseCitationFormatter):
     """MLA citation formatter implementation."""
     
+    def __init__(self, citation: 'Citation'):
+        """Initialize MLA formatter with citation data."""
+        super().__init__(citation)
+    
     def _to_title_case(self, title: str) -> str:
         """Convert title to MLA Title Case format.
         
@@ -64,16 +68,16 @@ class MLAFormatter(BaseCitationFormatter):
         authors = self._get_authors_list()
         formatted_authors = self._format_authors(authors)
         
-        if self.citation.type == "book":
+        if self._citation.type == "book":
             return self._format_book(formatted_authors)
-        elif self.citation.type == "article":
+        elif self._citation.type == "article":
             return self._format_article(formatted_authors)
-        elif self.citation.type == "website":
+        elif self._citation.type == "website":
             return self._format_website(formatted_authors)
-        elif self.citation.type == "report":
+        elif self._citation.type == "report":
             return self._format_report(formatted_authors)
         else:
-            return f"Unsupported citation type: {self.citation.type}"
+            return f"Unsupported citation type: {self._citation.type}"
     
     def _format_authors(self, authors: list) -> str:
         """Format authors for MLA style.
@@ -153,23 +157,23 @@ class MLAFormatter(BaseCitationFormatter):
             citation_parts.append(f"{authors}.")
         
         # Title in italics with Title Case
-        if self.citation.title:
-            title_case = self._to_title_case(self.citation.title)
+        if self._citation.title:
+            title_case = self._to_title_case(self._citation.title)
             citation_parts.append(f"<i>{title_case}</i>.")
         
         # Edition (if not first)
-        if self.citation.edition and self.citation.edition != 1:
-            edition_text = self._normalize_edition(self.citation.edition)
+        if self._citation.edition and self._citation.edition != 1:
+            edition_text = self._normalize_edition(self._citation.edition)
             if edition_text:
                 citation_parts.append(f"{edition_text},")
         
         # Publisher
-        if self.citation.publisher:
-            citation_parts.append(f"{self.citation.publisher},")
+        if self._citation.publisher:
+            citation_parts.append(f"{self._citation.publisher},")
         
         # Year
-        if self.citation.year:
-            citation_parts.append(f"{self.citation.year}.")
+        if self._citation.year:
+            citation_parts.append(f"{self._citation.year}.")
         else:
             citation_parts.append("n.d.")
         
@@ -185,39 +189,39 @@ class MLAFormatter(BaseCitationFormatter):
             citation_parts.append(f"{authors}.")
         
         # Article title in quotes with Title Case
-        if self.citation.title:
-            title_case = self._to_title_case(self.citation.title)
+        if self._citation.title:
+            title_case = self._to_title_case(self._citation.title)
             citation_parts.append(f'"{title_case}."')
         
         # Journal name in italics
         journal_part = []
-        if self.citation.journal:
-            journal_title_case = self._to_title_case(self.citation.journal)
+        if self._citation.journal:
+            journal_title_case = self._to_title_case(self._citation.journal)
             journal_part.append(f"<i>{journal_title_case}</i>")
             
-            if self.citation.volume:
-                vol_issue = f"vol. {self.citation.volume}"
-                if self.citation.issue:
-                    vol_issue += f", no. {self.citation.issue}"
+            if self._citation.volume:
+                vol_issue = f"vol. {self._citation.volume}"
+                if self._citation.issue:
+                    vol_issue += f", no. {self._citation.issue}"
                 journal_part.append(vol_issue)
             
-            if self.citation.year:
-                journal_part.append(str(self.citation.year))
+            if self._citation.year:
+                journal_part.append(str(self._citation.year))
             else:
                 journal_part.append("n.d.")
             
-            if self.citation.pages:
-                pages_formatted = self.citation.pages.replace('-', '–')
+            if self._citation.pages:
+                pages_formatted = self._citation.pages.replace('-', '–')
                 journal_part.append(f"pp. {pages_formatted}")
         
         if journal_part:
             citation_parts.append(", ".join(journal_part) + ".")
         
         # DOI or URL – should always be the last element, NO period at end
-        if self.citation.doi:
-            citation_parts.append(f"https://doi.org/{self.citation.doi}")
-        elif self.citation.url:
-            citation_parts.append(f"{self.citation.url}")
+        if self._citation.doi:
+            citation_parts.append(f"https://doi.org/{self._citation.doi}")
+        elif self._citation.url:
+            citation_parts.append(f"{self._citation.url}")
         
         return " ".join(citation_parts)
 
@@ -233,27 +237,27 @@ class MLAFormatter(BaseCitationFormatter):
             citation_parts.append(f"{authors}.")
         
         # Title in quotes with Title Case
-        if self.citation.title:
-            title_case = self._to_title_case(self.citation.title)
+        if self._citation.title:
+            title_case = self._to_title_case(self._citation.title)
             citation_parts.append(f'"{title_case}."')
         
         # Website name in italics with Title Case
-        if self.citation.publisher:
-            publisher_title_case = self._to_title_case(self.citation.publisher)
+        if self._citation.publisher:
+            publisher_title_case = self._to_title_case(self._citation.publisher)
             website_part = f"<i>{publisher_title_case}</i>"
             citation_parts.append(f"{website_part},")
         
         # With publication date
-        if self.citation.year:
-            citation_parts.append(f"{self.citation.year},")
-            if self.citation.url:
-                citation_parts.append(f"{self.citation.url}")
+        if self._citation.year:
+            citation_parts.append(f"{self._citation.year},")
+            if self._citation.url:
+                citation_parts.append(f"{self._citation.url}")
         else:
             # Without publication date -> include access date
-            if self.citation.url:
-                citation_parts.append(f"{self.citation.url}.")
-            if self.citation.access_date:
-                formatted_date = self._format_access_date(self.citation.access_date)
+            if self._citation.url:
+                citation_parts.append(f"{self._citation.url}.")
+            if self._citation.access_date:
+                formatted_date = self._format_access_date(self._citation.access_date)
                 citation_parts.append(f"{formatted_date}.")
             else:
                 citation_parts.append("Accessed [Date].")
@@ -271,21 +275,21 @@ class MLAFormatter(BaseCitationFormatter):
             citation_parts.append(f"{authors}.")
         
         # Title in italics with Title Case
-        if self.citation.title:
-            title_case = self._to_title_case(self.citation.title)
+        if self._citation.title:
+            title_case = self._to_title_case(self._citation.title)
             citation_parts.append(f"<i>{title_case}</i>.")
         
         # Institution/Publisher + Year (grouped to avoid double commas)
-        if self.citation.publisher:
-            pub_year = self.citation.publisher
-            if self.citation.year:
-                pub_year += f", {self.citation.year}"
+        if self._citation.publisher:
+            pub_year = self._citation.publisher
+            if self._citation.year:
+                pub_year += f", {self._citation.year}"
             else:
                 pub_year += ", n.d."
             citation_parts.append(f"{pub_year}.")
         
         # URL without period at end
-        if self.citation.url:
-            citation_parts.append(f"{self.citation.url}")
+        if self._citation.url:
+            citation_parts.append(f"{self._citation.url}")
         
         return " ".join(citation_parts)

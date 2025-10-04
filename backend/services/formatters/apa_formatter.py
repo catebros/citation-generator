@@ -8,6 +8,10 @@ if TYPE_CHECKING:
 class APAFormatter(BaseCitationFormatter):
     """APA citation formatter implementation."""
     
+    def __init__(self, citation: 'Citation'):
+        """Initialize APA formatter with citation data."""
+        super().__init__(citation)
+    
     def _to_sentence_case(self, title: str) -> str:
         """Convert title to APA Sentence Case format (7th edition).
         
@@ -73,16 +77,16 @@ class APAFormatter(BaseCitationFormatter):
         authors = self._get_authors_list()
         formatted_authors = self._format_authors(authors)
         
-        if self.citation.type == "book":
+        if self._citation.type == "book":
             return self._format_book(formatted_authors)
-        elif self.citation.type == "article":
+        elif self._citation.type == "article":
             return self._format_article(formatted_authors)
-        elif self.citation.type == "website":
+        elif self._citation.type == "website":
             return self._format_website(formatted_authors)
-        elif self.citation.type == "report":
+        elif self._citation.type == "report":
             return self._format_report(formatted_authors)
         else:
-            return f"Unsupported citation type: {self.citation.type}"
+            return f"Unsupported citation type: {self._citation.type}"
     
     def _format_authors(self, authors: list) -> str:
         """Format authors for APA style with proper initials.
@@ -140,24 +144,24 @@ class APAFormatter(BaseCitationFormatter):
             citation_parts.append(authors_clean)
         
         # Handle year or n.d.
-        if self.citation.year:
-            citation_parts.append(f"({self.citation.year})")
+        if self._citation.year:
+            citation_parts.append(f"({self._citation.year})")
         else:
             citation_parts.append("(n.d.)")
         
         # Title with edition if available (using Sentence case)
-        if self.citation.title:
-            title_sentence_case = self._to_sentence_case(self.citation.title)
+        if self._citation.title:
+            title_sentence_case = self._to_sentence_case(self._citation.title)
             title_part = f"<i>{title_sentence_case}</i>"
-            if self.citation.edition and self.citation.edition != 1:
+            if self._citation.edition and self._citation.edition != 1:
                 # Normalize edition format for APA
-                edition_text = self._normalize_edition(self.citation.edition)
+                edition_text = self._normalize_edition(self._citation.edition)
                 if edition_text:
                     title_part += f" ({edition_text})"
             citation_parts.append(title_part)
         
-        if self.citation.publisher:
-            citation_parts.append(self.citation.publisher)
+        if self._citation.publisher:
+            citation_parts.append(self._citation.publisher)
         
         # Join with '. ' and add final period only if no DOI
         if citation_parts:
@@ -177,37 +181,37 @@ class APAFormatter(BaseCitationFormatter):
             citation_parts.append(authors_clean)
         
         # Handle year or n.d.
-        if self.citation.year:
-            citation_parts.append(f"({self.citation.year})")
+        if self._citation.year:
+            citation_parts.append(f"({self._citation.year})")
         else:
             citation_parts.append("(n.d.)")
             
         # Article titles are NOT in italics in APA (using Sentence case)
-        if self.citation.title:
-            title_sentence_case = self._to_sentence_case(self.citation.title)
+        if self._citation.title:
+            title_sentence_case = self._to_sentence_case(self._citation.title)
             citation_parts.append(title_sentence_case)
         
         journal_part = ""
-        if self.citation.journal:
+        if self._citation.journal:
             # Journal name should be in italics
-            journal_part = f"<i>{self.citation.journal}</i>"
-            if self.citation.volume:
+            journal_part = f"<i>{self._citation.journal}</i>"
+            if self._citation.volume:
                 # Volume should also be in italics according to APA
-                journal_part += f", <i>{self.citation.volume}</i>"
-                if self.citation.issue:
+                journal_part += f", <i>{self._citation.volume}</i>"
+                if self._citation.issue:
                     # Issue number in regular text within parentheses
-                    journal_part += f"({self.citation.issue})"
-            if self.citation.pages:
+                    journal_part += f"({self._citation.issue})"
+            if self._citation.pages:
                 # Use en dash for page ranges in APA
-                pages_formatted = self.citation.pages.replace('-', '–')
+                pages_formatted = self._citation.pages.replace('-', '–')
                 journal_part += f", {pages_formatted}"
         
         if journal_part:
             citation_parts.append(journal_part)
         
-        if self.citation.doi:
+        if self._citation.doi:
             # DOI should not have a trailing period since it's a URL
-            citation_parts.append(f"https://doi.org/{self.citation.doi}")
+            citation_parts.append(f"https://doi.org/{self._citation.doi}")
             # Join with '. ' but don't add final period for DOI
             if citation_parts:
                 return ". ".join(citation_parts)
@@ -230,22 +234,22 @@ class APAFormatter(BaseCitationFormatter):
             citation_parts.append(authors_clean)
         
         # Handle year or n.d. for websites
-        if self.citation.year:
-            citation_parts.append(f"({self.citation.year})")
+        if self._citation.year:
+            citation_parts.append(f"({self._citation.year})")
         else:
             citation_parts.append("(n.d.)")
         
-        if self.citation.title:
-            title_sentence_case = self._to_sentence_case(self.citation.title)
+        if self._citation.title:
+            title_sentence_case = self._to_sentence_case(self._citation.title)
             citation_parts.append(title_sentence_case)
         
         # Add website name (publisher field) - Nombre del sitio
-        if self.citation.publisher:
-            citation_parts.append(f"<i>{self.citation.publisher}</i>")
+        if self._citation.publisher:
+            citation_parts.append(f"<i>{self._citation.publisher}</i>")
         
         # For websites, we use the URL directly without "Retrieved from"
-        if self.citation.url:
-            citation_parts.append(self.citation.url)
+        if self._citation.url:
+            citation_parts.append(self._citation.url)
             # No final period after URL
             return ". ".join(citation_parts)
         
@@ -267,24 +271,24 @@ class APAFormatter(BaseCitationFormatter):
             citation_parts.append(authors_clean)
         
         # Handle year or n.d.
-        if self.citation.year:
-            citation_parts.append(f"({self.citation.year})")
+        if self._citation.year:
+            citation_parts.append(f"({self._citation.year})")
         else:
             citation_parts.append("(n.d.)")
             
-        if self.citation.title:
+        if self._citation.title:
             # Title with report type specification (using Sentence case)
-            title_sentence_case = self._to_sentence_case(self.citation.title)
+            title_sentence_case = self._to_sentence_case(self._citation.title)
             title_part = f"<i>{title_sentence_case}</i> [Report]"
             citation_parts.append(title_part)
         
         # Add institution/organization (publisher)
-        if self.citation.publisher:
-            citation_parts.append(self.citation.publisher)
+        if self._citation.publisher:
+            citation_parts.append(self._citation.publisher)
         
         # Add URL if available (reports don't have DOI)
-        if self.citation.url:
-            citation_parts.append(self.citation.url)
+        if self._citation.url:
+            citation_parts.append(self._citation.url)
             # No final period after URL
             return ". ".join(citation_parts)
         

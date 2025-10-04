@@ -6,6 +6,7 @@ from typing import Generator
 
 # SQLite database URL - creates a local file-based database named 'citations.db'
 DATABASE_URL = "sqlite:///./citations.db"
+TEST_DATABASE_URL = "sqlite:///./test_citations.db"
 
 
 class DatabaseEngine:
