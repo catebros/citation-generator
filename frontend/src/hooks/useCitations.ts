@@ -8,11 +8,13 @@ import type {
   BibliographyResponse 
 } from '../types';
 import toast from 'react-hot-toast';
+import { parseValidationError, type ParsedErrors } from '../utils/errorParser';
 
 export const useCitations = (projectId: number) => {
   const [citations, setCitations] = useState<Citation[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [validationErrors, setValidationErrors] = useState<ParsedErrors>({ fieldErrors: {}, generalError: null });
 
   const fetchCitations = async () => {
     try {
@@ -32,14 +34,21 @@ export const useCitations = (projectId: number) => {
   const createCitation = async (data: CreateCitationRequest) => {
     try {
       setIsLoading(true);
+      setValidationErrors({ fieldErrors: {}, generalError: null });
       const newCitation = await citationApi.create(projectId, data);
-      setCitations((prev) => [...prev, newCitation]);
+      setCitations((prev) => [newCitation, ...prev]);
       toast.success('Citation created successfully');
       return newCitation;
     } catch (err: any) {
       const errorMessage = err.response?.data?.detail || 'Failed to create citation';
+      const parsedErrors = parseValidationError(errorMessage);
+      setValidationErrors(parsedErrors);
       setError(errorMessage);
-      toast.error(errorMessage);
+      
+      // Show toast for general errors (missing fields, invalid fields) but not for format errors
+      if (parsedErrors.generalError) {
+        toast.error(parsedErrors.generalError);
+      }
       throw err;
     } finally {
       setIsLoading(false);
@@ -49,6 +58,7 @@ export const useCitations = (projectId: number) => {
   const updateCitation = async (citationId: number, data: UpdateCitationRequest) => {
     try {
       setIsLoading(true);
+      setValidationErrors({ fieldErrors: {}, generalError: null });
       const updatedCitation = await citationApi.update(projectId, citationId, data);
       setCitations((prev) =>
         prev.map((citation) => (citation.id === citationId ? updatedCitation : citation))
@@ -57,8 +67,14 @@ export const useCitations = (projectId: number) => {
       return updatedCitation;
     } catch (err: any) {
       const errorMessage = err.response?.data?.detail || 'Failed to update citation';
+      const parsedErrors = parseValidationError(errorMessage);
+      setValidationErrors(parsedErrors);
       setError(errorMessage);
-      toast.error(errorMessage);
+      
+      // Show toast for general errors (missing fields, invalid fields) but not for format errors
+      if (parsedErrors.generalError) {
+        toast.error(parsedErrors.generalError);
+      }
       throw err;
     } finally {
       setIsLoading(false);
@@ -91,6 +107,7 @@ export const useCitations = (projectId: number) => {
     citations,
     isLoading,
     error,
+    validationErrors,
     fetchCitations,
     createCitation,
     updateCitation,

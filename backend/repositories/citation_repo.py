@@ -136,12 +136,11 @@ class CitationRepository:
         # Prepare update data with proper JSON encoding for authors
         processed_updates = {}
         for key, value in update_data.items():
-            if value is not None:
-                if key == "authors" and isinstance(value, list):
+            if key == "authors" and isinstance(value, list):
                     # Convert authors list to JSON string for database storage
-                    processed_updates[key] = json.dumps(value)
-                else:
-                    processed_updates[key] = value
+                processed_updates[key] = json.dumps(value)
+            else:
+                processed_updates[key] = value
 
         # Get current citation data for comparison and merging
         current_data = {

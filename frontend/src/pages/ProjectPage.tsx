@@ -21,6 +21,7 @@ const ProjectPage: React.FC = () => {
   const {
     citations,
     isLoading: citationsLoading,
+    validationErrors,
     createCitation,
     updateCitation,
     deleteCitation,
@@ -228,6 +229,7 @@ const ProjectPage: React.FC = () => {
           onSubmit={editingCitation ? handleUpdateCitation : handleCreateCitation}
           citation={editingCitation || undefined}
           isLoading={isCitationSaving}
+          validationErrors={validationErrors}
         />
 
         <CreateProjectModal
