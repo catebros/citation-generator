@@ -151,7 +151,7 @@ def _validate_field_formats(data: Dict[str, Any]):
         "issue": _validate_non_empty_string,
         "edition": _validate_volume_edition,
         "publisher": _validate_non_empty_string,
-        "place": _validate_non_empty_string,
+        "place": _validate_place,
         "journal": _validate_non_empty_string,
     }
     
@@ -160,7 +160,7 @@ def _validate_field_formats(data: Dict[str, Any]):
             field_validators[field](value, field)
 
 def _validate_authors(authors: Any, field_name: str):
-    """Validate authors field - must be a non-empty list of non-empty strings."""
+    """Validate authors field - must be a non-empty list of non-empty strings without numbers or special characters."""
     if not isinstance(authors, list):
         raise HTTPException(status_code=400, detail=f"{field_name.capitalize()} must be a list")
     if not authors:
@@ -168,6 +168,8 @@ def _validate_authors(authors: Any, field_name: str):
     for author in authors:
         if not isinstance(author, str) or not author.strip():
             raise HTTPException(status_code=400, detail=f"All {field_name.lower()} must be non-empty strings")
+        if not _is_valid_name(author.strip()):
+            raise HTTPException(status_code=400, detail=f"Author names can only contain letters, spaces, hyphens, apostrophes, and periods")
 
 def _validate_year(year: Any, field_name: str):
     """Validate year field - must be None or a non-negative integer not exceeding current year."""
@@ -222,6 +224,13 @@ def _validate_volume_edition(value: Any, field_name: str):
     if value <= 0:
         raise HTTPException(status_code=400, detail=f"{field_name.capitalize()} must be a positive integer")
 
+def _validate_place(place: Any, field_name: str):
+    """Validate place field - must be a non-empty string without numbers or special characters."""
+    if not isinstance(place, str) or not place.strip():
+        raise HTTPException(status_code=400, detail=f"{field_name.capitalize()} must be a non-empty string")
+    if not _is_valid_place_name(place.strip()):
+        raise HTTPException(status_code=400, detail=f"Place names can only contain letters, spaces, hyphens, apostrophes, periods, and commas")
+
 def _validate_non_empty_string(value: Any, field_name: str):
     """Validate string fields that cannot be empty."""
     if not isinstance(value, str) or not value.strip():
@@ -273,3 +282,17 @@ def _is_valid_date(date_str: str) -> bool:
         return True
     except ValueError:
         return False
+
+def _is_valid_name(name: str) -> bool:
+    """Check if name contains only valid characters (letters, spaces, hyphens, apostrophes, periods)."""
+    # Allow letters (including accented), spaces, hyphens, apostrophes, and periods
+    # Exclude numbers and special characters like @, #, $, etc.
+    name_pattern = re.compile(r"^[a-zA-ZÀ-ÿ\s\-\'\.']+$")
+    return name_pattern.match(name) is not None
+
+def _is_valid_place_name(place: str) -> bool:
+    """Check if place name contains only valid characters (letters, spaces, hyphens, apostrophes, periods, commas)."""
+    # Allow letters (including accented), spaces, hyphens, apostrophes, periods, and commas for places
+    # Exclude numbers and special characters like @, #, $, etc.
+    place_pattern = re.compile(r"^[a-zA-ZÀ-ÿ\s\-\'\.',]+$")
+    return place_pattern.match(place) is not None

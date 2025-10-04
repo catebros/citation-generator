@@ -747,3 +747,230 @@ def test_validate_access_date_wrong_format_raises_exception():
     
     assert exc_info.value.status_code == 400
     assert "Access Date must be in YYYY-MM-DD format" in exc_info.value.detail
+
+# Test cases for new character validation in authors and place fields
+
+def test_validate_authors_valid_names_with_accents_passes():
+    """Test that author names with accents and valid characters pass validation."""
+    valid_data = {
+        "type": "book",
+        "title": "Test Book",
+        "authors": ["María García-López", "Jean-Pierre O'Connor", "José María de la Cruz"],
+        "year": 2023,
+        "publisher": "Test Publisher",
+        "place": "Test City",
+        "edition": 1
+    }
+    
+    result = validate_citation_data(valid_data, mode="create")
+    assert result is True
+
+def test_validate_authors_with_numbers_raises_exception():
+    """Test that author names containing numbers raise exception."""
+    invalid_data = {
+        "type": "book",
+        "title": "Test Book",
+        "authors": ["John Smith", "Jane123 Doe"],
+        "year": 2023,
+        "publisher": "Test Publisher",
+        "place": "Test City",
+        "edition": 1
+    }
+    
+    with pytest.raises(HTTPException) as exc_info:
+        validate_citation_data(invalid_data, mode="create")
+    
+    assert exc_info.value.status_code == 400
+    assert "Author names can only contain letters, spaces, hyphens, apostrophes, and periods" in exc_info.value.detail
+
+def test_validate_authors_with_special_characters_raises_exception():
+    """Test that author names containing special characters raise exception."""
+    invalid_data = {
+        "type": "book",
+        "title": "Test Book",
+        "authors": ["John Smith", "Jane@Doe"],
+        "year": 2023,
+        "publisher": "Test Publisher",
+        "place": "Test City",
+        "edition": 1
+    }
+    
+    with pytest.raises(HTTPException) as exc_info:
+        validate_citation_data(invalid_data, mode="create")
+    
+    assert exc_info.value.status_code == 400
+    assert "Author names can only contain letters, spaces, hyphens, apostrophes, and periods" in exc_info.value.detail
+
+def test_validate_authors_with_underscore_raises_exception():
+    """Test that author names containing underscores raise exception."""
+    invalid_data = {
+        "type": "book",
+        "title": "Test Book",
+        "authors": ["John_Smith", "Jane Doe"],
+        "year": 2023,
+        "publisher": "Test Publisher",
+        "place": "Test City",
+        "edition": 1
+    }
+    
+    with pytest.raises(HTTPException) as exc_info:
+        validate_citation_data(invalid_data, mode="create")
+    
+    assert exc_info.value.status_code == 400
+    assert "Author names can only contain letters, spaces, hyphens, apostrophes, and periods" in exc_info.value.detail
+
+def test_validate_authors_with_hash_symbol_raises_exception():
+    """Test that author names containing hash symbols raise exception."""
+    invalid_data = {
+        "type": "book",
+        "title": "Test Book",
+        "authors": ["John Smith", "Jane#Doe"],
+        "year": 2023,
+        "publisher": "Test Publisher",
+        "place": "Test City",
+        "edition": 1
+    }
+    
+    with pytest.raises(HTTPException) as exc_info:
+        validate_citation_data(invalid_data, mode="create")
+    
+    assert exc_info.value.status_code == 400
+    assert "Author names can only contain letters, spaces, hyphens, apostrophes, and periods" in exc_info.value.detail
+
+def test_validate_place_valid_names_with_accents_passes():
+    """Test that place names with accents and valid characters pass validation."""
+    valid_data = {
+        "type": "book",
+        "title": "Test Book",
+        "authors": ["Author One"],
+        "year": 2023,
+        "publisher": "Test Publisher",
+        "place": "São Paulo, Brazil",
+        "edition": 1
+    }
+    
+    result = validate_citation_data(valid_data, mode="create")
+    assert result is True
+
+def test_validate_place_with_hyphens_and_apostrophes_passes():
+    """Test that place names with hyphens and apostrophes pass validation."""
+    valid_data = {
+        "type": "book",
+        "title": "Test Book",
+        "authors": ["Author One"],
+        "year": 2023,
+        "publisher": "Test Publisher",
+        "place": "Saint-Denis, L'Île-de-France",
+        "edition": 1
+    }
+    
+    result = validate_citation_data(valid_data, mode="create")
+    assert result is True
+
+def test_validate_place_with_numbers_raises_exception():
+    """Test that place names containing numbers raise exception."""
+    invalid_data = {
+        "type": "book",
+        "title": "Test Book",
+        "authors": ["Author One"],
+        "year": 2023,
+        "publisher": "Test Publisher",
+        "place": "New York 123",
+        "edition": 1
+    }
+    
+    with pytest.raises(HTTPException) as exc_info:
+        validate_citation_data(invalid_data, mode="create")
+    
+    assert exc_info.value.status_code == 400
+    assert "Place names can only contain letters, spaces, hyphens, apostrophes, periods, and commas" in exc_info.value.detail
+
+def test_validate_place_with_special_characters_raises_exception():
+    """Test that place names containing special characters raise exception."""
+    invalid_data = {
+        "type": "book",
+        "title": "Test Book",
+        "authors": ["Author One"],
+        "year": 2023,
+        "publisher": "Test Publisher",
+        "place": "New York@City",
+        "edition": 1
+    }
+    
+    with pytest.raises(HTTPException) as exc_info:
+        validate_citation_data(invalid_data, mode="create")
+    
+    assert exc_info.value.status_code == 400
+    assert "Place names can only contain letters, spaces, hyphens, apostrophes, periods, and commas" in exc_info.value.detail
+
+def test_validate_place_with_hash_symbol_raises_exception():
+    """Test that place names containing hash symbols raise exception."""
+    invalid_data = {
+        "type": "book",
+        "title": "Test Book",
+        "authors": ["Author One"],
+        "year": 2023,
+        "publisher": "Test Publisher",
+        "place": "City#1",
+        "edition": 1
+    }
+    
+    with pytest.raises(HTTPException) as exc_info:
+        validate_citation_data(invalid_data, mode="create")
+    
+    assert exc_info.value.status_code == 400
+    assert "Place names can only contain letters, spaces, hyphens, apostrophes, periods, and commas" in exc_info.value.detail
+
+def test_validate_place_with_dollar_sign_raises_exception():
+    """Test that place names containing dollar signs raise exception."""
+    invalid_data = {
+        "type": "book",
+        "title": "Test Book",
+        "authors": ["Author One"],
+        "year": 2023,
+        "publisher": "Test Publisher",
+        "place": "City$Name",
+        "edition": 1
+    }
+    
+    with pytest.raises(HTTPException) as exc_info:
+        validate_citation_data(invalid_data, mode="create")
+    
+    assert exc_info.value.status_code == 400
+    assert "Place names can only contain letters, spaces, hyphens, apostrophes, periods, and commas" in exc_info.value.detail
+
+def test_validate_authors_multiple_invalid_characters_raises_exception():
+    """Test that author names with multiple types of invalid characters raise exception."""
+    invalid_data = {
+        "type": "book",
+        "title": "Test Book",
+        "authors": ["John Smith", "Jane123@Doe#Test"],
+        "year": 2023,
+        "publisher": "Test Publisher",
+        "place": "Test City",
+        "edition": 1
+    }
+    
+    with pytest.raises(HTTPException) as exc_info:
+        validate_citation_data(invalid_data, mode="create")
+    
+    assert exc_info.value.status_code == 400
+    assert "Author names can only contain letters, spaces, hyphens, apostrophes, and periods" in exc_info.value.detail
+
+def test_validate_place_multiple_invalid_characters_raises_exception():
+    """Test that place names with multiple types of invalid characters raise exception."""
+    invalid_data = {
+        "type": "book",
+        "title": "Test Book",
+        "authors": ["Author One"],
+        "year": 2023,
+        "publisher": "Test Publisher",
+        "place": "City123@Name#Test",
+        "edition": 1
+    }
+    
+    with pytest.raises(HTTPException) as exc_info:
+        validate_citation_data(invalid_data, mode="create")
+    
+    assert exc_info.value.status_code == 400
+    assert "Place names can only contain letters, spaces, hyphens, apostrophes, periods, and commas" in exc_info.value.detail
