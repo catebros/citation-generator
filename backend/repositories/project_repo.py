@@ -143,7 +143,7 @@ class ProjectRepository:
 
     def get_by_name(self, name: str):
         """
-        Retrieve a project by its name.
+        Retrieve a project by its name (case-insensitive).
         
         Args:
             name (str): The name of the project to retrieve
@@ -151,4 +151,4 @@ class ProjectRepository:
         Returns:
             Project | None: The project if found, None otherwise
         """
-        return self._db.query(Project).filter(Project.name == name).first()
+        return self._db.query(Project).filter(Project.name.ilike(name)).first()

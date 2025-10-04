@@ -320,6 +320,78 @@ def test_get_by_name_not_found(db_session):
     
     assert fetched is None
 
+# CASE-INSENSITIVE TESTS FOR GET BY NAME
+def test_get_by_name_case_insensitive_uppercase(db_session):
+    """Test that get_by_name finds projects with different case (uppercase)."""
+    repo = ProjectRepository(db_session)
+    created = repo.create({"name": "Machine Learning Project"})
+    
+    # Search with uppercase
+    fetched = repo.get_by_name("MACHINE LEARNING PROJECT")
+    
+    assert fetched is not None
+    assert fetched.id == created.id
+    assert fetched.name == "Machine Learning Project"  # Original case preserved
+
+def test_get_by_name_case_insensitive_lowercase(db_session):
+    """Test that get_by_name finds projects with different case (lowercase)."""
+    repo = ProjectRepository(db_session)
+    created = repo.create({"name": "Data Science Research"})
+    
+    # Search with lowercase
+    fetched = repo.get_by_name("data science research")
+    
+    assert fetched is not None
+    assert fetched.id == created.id
+    assert fetched.name == "Data Science Research"  # Original case preserved
+
+def test_get_by_name_case_insensitive_mixed_case(db_session):
+    """Test that get_by_name finds projects with mixed case patterns."""
+    repo = ProjectRepository(db_session)
+    created = repo.create({"name": "Neural Networks Study"})
+    
+    # Search with mixed case
+    fetched = repo.get_by_name("nEuRaL NeTwOrKs StUdY")
+    
+    assert fetched is not None
+    assert fetched.id == created.id
+    assert fetched.name == "Neural Networks Study"  # Original case preserved
+
+def test_get_by_name_case_insensitive_no_false_positive(db_session):
+    """Test that case-insensitive search doesn't create false positives."""
+    repo = ProjectRepository(db_session)
+    
+    # Create projects with similar but different names
+    project1 = repo.create({"name": "AI Research"})
+    project2 = repo.create({"name": "AI Development"})
+    
+    # Search for exact match should return correct project
+    fetched1 = repo.get_by_name("ai research")
+    fetched2 = repo.get_by_name("AI DEVELOPMENT")
+    
+    assert fetched1 is not None
+    assert fetched1.id == project1.id
+    assert fetched1.name == "AI Research"
+    
+    assert fetched2 is not None  
+    assert fetched2.id == project2.id
+    assert fetched2.name == "AI Development"
+    
+    # Should not confuse them
+    assert fetched1.id != fetched2.id
+
+def test_get_by_name_case_insensitive_with_special_characters(db_session):
+    """Test case-insensitive search with special characters and spaces."""
+    repo = ProjectRepository(db_session)
+    created = repo.create({"name": "Project-Name_With Special.Characters"})
+    
+    # Search with different case
+    fetched = repo.get_by_name("PROJECT-NAME_WITH SPECIAL.CHARACTERS")
+    
+    assert fetched is not None
+    assert fetched.id == created.id
+    assert fetched.name == "Project-Name_With Special.Characters"  # Original case preserved
+
 # TEST GET ALL BY PROJECT
 # Returns citations ordered by created_at desc for a specific project
 def test_get_all_by_project(db_session):

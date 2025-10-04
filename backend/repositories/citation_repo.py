@@ -1,5 +1,6 @@
 # backend/repositories/citation_repo.py
 from sqlalchemy.orm import Session
+from sqlalchemy import func
 from models.citation import Citation
 from models.project_citation import ProjectCitation
 from config.citation_config import CitationFieldsConfig
@@ -179,6 +180,7 @@ class CitationRepository:
     def find_duplicate_citation_in_project(self, project_id: int, data: dict) -> Citation | None:
         """
         Find if an identical citation already exists in a specific project.
+        Case-insensitive comparison for string fields.
         
         Args:
             project_id (int): ID of the project to search in
@@ -190,29 +192,74 @@ class CitationRepository:
         # Convert authors to JSON for comparison
         authors_json = json.dumps(data.get("authors"))
         
-        # Query for identical citation within the specific project
-        return (
+        # Build query step by step
+        query = (
             self._db.query(Citation)
             .join(ProjectCitation, Citation.id == ProjectCitation.citation_id)
-            .filter(
-                ProjectCitation.project_id == project_id,
-                Citation.type == data.get("type"),
-                Citation.title == data.get("title"),
-                Citation.authors == authors_json,
-                Citation.year == data.get("year"),
-                Citation.publisher == data.get("publisher"),
-                Citation.journal == data.get("journal"),
-                Citation.volume == data.get("volume"),
-                Citation.issue == data.get("issue"),
-                Citation.pages == data.get("pages"),
-                Citation.doi == data.get("doi"),
-                Citation.url == data.get("url"),
-                Citation.access_date == data.get("access_date"),
-                Citation.place == data.get("place"),
-                Citation.edition == data.get("edition")
-            )
-            .first()
+            .filter(ProjectCitation.project_id == project_id)
         )
+        
+        # Case-insensitive comparison for string fields using ilike
+        if data.get("type"):
+            query = query.filter(Citation.type.ilike(data.get("type")))
+        else:
+            query = query.filter(Citation.type.is_(None))
+            
+        if data.get("title"):
+            query = query.filter(Citation.title.ilike(data.get("title")))
+        else:
+            query = query.filter(Citation.title.is_(None))
+            
+        # Authors comparison
+        query = query.filter(Citation.authors.ilike(authors_json))
+        
+        # Exact comparisons for numeric fields
+        query = query.filter(Citation.year == data.get("year"))
+        query = query.filter(Citation.volume == data.get("volume"))
+        query = query.filter(Citation.edition == data.get("edition"))
+        
+        # Case-insensitive for optional string fields
+        if data.get("publisher"):
+            query = query.filter(Citation.publisher.ilike(data.get("publisher")))
+        else:
+            query = query.filter(Citation.publisher.is_(None))
+            
+        if data.get("journal"):
+            query = query.filter(Citation.journal.ilike(data.get("journal")))
+        else:
+            query = query.filter(Citation.journal.is_(None))
+            
+        if data.get("issue"):
+            query = query.filter(Citation.issue.ilike(data.get("issue")))
+        else:
+            query = query.filter(Citation.issue.is_(None))
+            
+        if data.get("pages"):
+            query = query.filter(Citation.pages.ilike(data.get("pages")))
+        else:
+            query = query.filter(Citation.pages.is_(None))
+            
+        if data.get("doi"):
+            query = query.filter(Citation.doi.ilike(data.get("doi")))
+        else:
+            query = query.filter(Citation.doi.is_(None))
+            
+        if data.get("url"):
+            query = query.filter(Citation.url.ilike(data.get("url")))
+        else:
+            query = query.filter(Citation.url.is_(None))
+            
+        if data.get("access_date"):
+            query = query.filter(Citation.access_date.ilike(data.get("access_date")))
+        else:
+            query = query.filter(Citation.access_date.is_(None))
+            
+        if data.get("place"):
+            query = query.filter(Citation.place.ilike(data.get("place")))
+        else:
+            query = query.filter(Citation.place.is_(None))
+        
+        return query.first()
     
     def get_by_id(self, citation_id: int) -> Citation | None:
         """

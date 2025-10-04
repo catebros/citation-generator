@@ -593,3 +593,84 @@ def test_update_citation_with_same_values_does_not_duplicate(db_session):
     assert updated.title == "Unchanged Title"
     assert "Author A" in updated.authors
 
+
+def test_find_duplicate_citation_case_insensitive(db_session):
+    """Test that find_duplicate_citation_in_project detects duplicates with different case."""
+    repo = CitationRepository(db_session)
+
+    project = Project(name="Case Test Project")
+    db_session.add(project)
+    db_session.commit()
+    db_session.refresh(project)
+
+    # Create citation with specific case
+    original = repo.create(
+        project_id=project.id,
+        type="article",
+        title="Machine Learning Fundamentals",
+        authors=["John Doe"],
+        year=2021
+    )
+
+    # Test different case combinations
+    test_data = {
+        "type": "ARTICLE",  # Different case
+        "title": "MACHINE LEARNING FUNDAMENTALS",  # Different case
+        "authors": ["JOHN DOE"],  # Different case
+        "year": 2021,
+        "publisher": None,
+        "journal": None,
+        "volume": None,
+        "issue": None,
+        "pages": None,
+        "doi": None,
+        "url": None,
+        "access_date": None,
+        "place": None,
+        "edition": None
+    }
+
+    duplicate = repo.find_duplicate_citation_in_project(project.id, test_data)
+    assert duplicate is not None
+    assert duplicate.id == original.id
+
+
+def test_find_duplicate_citation_no_false_positive(db_session):
+    """Test that case-insensitive comparison doesn't create false positives."""
+    repo = CitationRepository(db_session)
+
+    project = Project(name="False Positive Test Project")
+    db_session.add(project)
+    db_session.commit()
+    db_session.refresh(project)
+
+    # Create original citation
+    original = repo.create(
+        project_id=project.id,
+        type="book",
+        title="Original Title",
+        authors=["Author One"],
+        year=2020
+    )
+
+    # Test with completely different content
+    test_data = {
+        "type": "article",  # Different type
+        "title": "Different Title",  # Different title
+        "authors": ["Different Author"],  # Different author
+        "year": 2021,  # Different year
+        "publisher": None,
+        "journal": None,
+        "volume": None,
+        "issue": None,
+        "pages": None,
+        "doi": None,
+        "url": None,
+        "access_date": None,
+        "place": None,
+        "edition": None
+    }
+
+    duplicate = repo.find_duplicate_citation_in_project(project.id, test_data)
+    assert duplicate is None  # Should not find a duplicate
+
