@@ -60,17 +60,6 @@ const CitationFormModal: React.FC<CitationFormModalProps> = ({
   // Track original data for comparison (only for editing)
   const [originalData, setOriginalData] = useState<any>(null);
 
-  // Helper function to get required fields for each citation type
-  const getRequiredFields = (citationType: CitationType): string[] => {
-    const requiredFieldsMap: Record<CitationType, string[]> = {
-      book: ["type", "title", "authors", "year", "publisher", "place", "edition"],
-      article: ["type", "title", "authors", "year", "journal", "volume", "issue", "pages", "doi"],
-      website: ["type", "title", "authors", "year", "publisher", "url", "access_date"],
-      report: ["type", "title", "authors", "year", "publisher", "url", "place"]
-    };
-    return requiredFieldsMap[citationType] || [];
-  };
-
   // Helper function to get ALL valid fields for each citation type (required + optional)
   const getValidFields = (citationType: CitationType): string[] => {
     const validFieldsMap: Record<CitationType, string[]> = {
