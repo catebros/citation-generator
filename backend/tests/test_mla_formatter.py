@@ -16,7 +16,7 @@ def test_mla_book_single_author():
     )
     formatter = MLAFormatter(citation)
     result = formatter._format_book(formatter._format_authors(formatter._get_authors_list()))
-    expected = "Lee, Harper. *To Kill a Mockingbird*. J.B. Lippincott & Co., 1960."
+    expected = "Lee, Harper. <i>To Kill a Mockingbird</i>. J.B. Lippincott & Co., 1960."
     assert result == expected
 
 def test_mla_book_two_authors():
@@ -30,7 +30,7 @@ def test_mla_book_two_authors():
     )
     formatter = MLAFormatter(citation)
     result = formatter._format_book(formatter._format_authors(formatter._get_authors_list()))
-    expected = "Smith, John, and Alice Doe. *The Great Book*. Academic Press, 2023."
+    expected = "Smith, John, and Alice Doe. <i>The Great Book</i>. Academic Press, 2023."
     assert result == expected
 
 def test_mla_book_three_authors():
@@ -44,7 +44,7 @@ def test_mla_book_three_authors():
     )
     formatter = MLAFormatter(citation)
     result = formatter._format_book(formatter._format_authors(formatter._get_authors_list()))
-    expected = "Smith, John, Alice Doe, and Bob Johnson. *Research Methods*. Research Press, 2022."
+    expected = "Smith, John, Alice Doe, and Bob Johnson. <i>Research Methods</i>. Research Press, 2022."
     assert result == expected
 
 def test_mla_book_with_edition():
@@ -59,7 +59,7 @@ def test_mla_book_with_edition():
     )
     formatter = MLAFormatter(citation)
     result = formatter._format_book(formatter._format_authors(formatter._get_authors_list()))
-    expected = "Developer, Jane. *Programming Fundamentals*. 3rd ed., Tech Books, 2023."
+    expected = "Developer, Jane. <i>Programming Fundamentals</i>. 3rd ed., Tech Books, 2023."
     assert result == expected
 
 def test_mla_book_first_edition_ignored():
@@ -74,7 +74,7 @@ def test_mla_book_first_edition_ignored():
     )
     formatter = MLAFormatter(citation)
     result = formatter._format_book(formatter._format_authors(formatter._get_authors_list()))
-    expected = "Name, Author. *First Edition Book*. Publisher, 2023."
+    expected = "Name, Author. <i>First Edition Book</i>. Publisher, 2023."
     assert result == expected
 
 def test_mla_article_complete_data():
@@ -92,7 +92,7 @@ def test_mla_article_complete_data():
     )
     formatter = MLAFormatter(citation)
     result = formatter._format_article(formatter._format_authors(formatter._get_authors_list()))
-    expected = 'Smith, Jane, and John Doe. "Climate Change Effects." *Environmental Science Today*, vol. 45, no. 2, 2023, pp. 123–145. https://doi.org/10.1234/est.2023.45.2.123.'
+    expected = 'Smith, Jane, and John Doe. "Climate Change Effects." <i>Environmental Science Today</i>, vol. 45, no. 2, 2023, pp. 123–145. https://doi.org/10.1234/est.2023.45.2.123'
     assert result == expected
 
 def test_mla_article_without_doi():
@@ -108,7 +108,7 @@ def test_mla_article_without_doi():
     )
     formatter = MLAFormatter(citation)
     result = formatter._format_article(formatter._format_authors(formatter._get_authors_list()))
-    expected = 'Johnson, Alice. "Research Study." *Science Journal*, vol. 30, 2022, pp. 45–60.'
+    expected = 'Johnson, Alice. "Research Study." <i>Science Journal</i>, vol. 30, 2022, pp. 45–60.'
     assert result == expected
 
 def test_mla_article_without_issue():
@@ -124,7 +124,7 @@ def test_mla_article_without_issue():
     )
     formatter = MLAFormatter(citation)
     result = formatter._format_article(formatter._format_authors(formatter._get_authors_list()))
-    expected = 'Writer, Bob. "Simple Study." *Research Today*, vol. 15, 2023, pp. 10–20.'
+    expected = 'Writer, Bob. "Simple Study." <i>Research Today</i>, vol. 15, 2023, pp. 10–20.'
     assert result == expected
 
 def test_mla_website_complete_data():
@@ -140,7 +140,7 @@ def test_mla_website_complete_data():
     )
     formatter = MLAFormatter(citation)
     result = formatter._format_website(formatter._format_authors(formatter._get_authors_list()))
-    expected = 'Team, Environmental. "Understanding Climate Change." *Climate Organization*, 2023, https://example.org/climate-change.'
+    expected = 'Team, Environmental. "Understanding Climate Change." <i>Climate Organization</i>, 2023, https://example.org/climate-change'
     assert result == expected
 
 def test_mla_website_without_author():
@@ -156,7 +156,7 @@ def test_mla_website_without_author():
     )
     formatter = MLAFormatter(citation)
     result = formatter._format_website(formatter._format_authors(formatter._get_authors_list()))
-    expected = '"News Article." *News Site*, 2023, https://example.org/news.'
+    expected = '"News Article." <i>News Site</i>, 2023, https://example.org/news'
     assert result == expected
 
 def test_mla_website_without_access_date():
@@ -171,7 +171,7 @@ def test_mla_website_without_access_date():
     )
     formatter = MLAFormatter(citation)
     result = formatter._format_website(formatter._format_authors(formatter._get_authors_list()))
-    expected = 'Author, Web. "Online Resource." *Web Publisher*, 2023, https://example.org/resource.'
+    expected = 'Author, Web. "Online Resource." <i>Web Publisher</i>, 2023, https://example.org/resource'
     assert result == expected
 
 def test_mla_report_complete_data():
@@ -186,7 +186,7 @@ def test_mla_report_complete_data():
     )
     formatter = MLAFormatter(citation)
     result = formatter._format_report(formatter._format_authors(formatter._get_authors_list()))
-    expected = "Graduate, Sarah. *Annual Climate Report*. Environmental Research Institute, 2021. https://example.org/climate-report-2021."
+    expected = "Graduate, Sarah. <i>Annual Climate Report</i>. Environmental Research Institute, 2021. https://example.org/climate-report-2021"
     assert result == expected
 
 def test_mla_report_without_url():
@@ -200,7 +200,7 @@ def test_mla_report_without_url():
     )
     formatter = MLAFormatter(citation)
     result = formatter._format_report(formatter._format_authors(formatter._get_authors_list()))
-    expected = "Student, M. *Technical Report*. Tech Research Corp, 2023."
+    expected = "Student, M. <i>Technical Report</i>. Tech Research Corp, 2023."
     assert result == expected
 
 def test_mla_format_authors_single():
@@ -303,7 +303,7 @@ def test_mla_missing_required_fields_handled_gracefully():
     # Should handle missing fields without crashing
     assert isinstance(result, str)
     assert "n.d." in result  # Should show "no date"
-    
+
 def test_mla_book_with_advanced_edition_in_real_citation():
     """Test MLA book with advanced edition (22nd ed.) integrated in real citation."""
     citation = Citation(
@@ -318,7 +318,7 @@ def test_mla_book_with_advanced_edition_in_real_citation():
     result = formatter.format_citation()
     
     assert "22nd ed." in result
-    expected = "John, Smith,, and Johnson, Robert. *Modern Literary Theory*. 22nd ed., University Press, 2023."
+    expected = "John, Smith,, and Johnson, Robert. <i>Modern Literary Theory</i>. 22nd ed., University Press, 2023."
     assert result == expected
 
 
@@ -337,7 +337,7 @@ def test_mla_article_year_none_shows_nd():
     result = formatter.format_citation()
     
     assert "n.d." in result
-    expected = 'John, Smith,. "Undated Research." *Academic Journal*, vol. 15, n.d., pp. 45–60.'
+    expected = 'John, Smith,. "Undated Research." <i>Academic Journal</i>, vol. 15, n.d., pp. 45–60.'
     assert result == expected
 
 
@@ -356,7 +356,7 @@ def test_mla_website_year_none_with_valid_access_date():
     result = formatter.format_citation()
     
     assert "Accessed 2 Oct. 2025" in result
-    expected = 'Author, Web,. "Online Resource." *Example Website*, https://example.com/resource. Accessed 2 Oct. 2025.'
+    expected = 'Author, Web,. "Online Resource." <i>Example Website</i>, https://example.com/resource. Accessed 2 Oct. 2025.'
     assert result == expected
 
 
@@ -375,7 +375,7 @@ def test_mla_website_year_none_with_invalid_access_date():
     result = formatter.format_citation()
     
     assert "Accessed not-a-date" in result
-    expected = 'Author, Digital,. "Another Resource." *Test Site*, https://test.com. Accessed not-a-date.'
+    expected = 'Author, Digital,. "Another Resource." <i>Test Site</i>, https://test.com. Accessed not-a-date.'
     assert result == expected
 
 
@@ -392,7 +392,7 @@ def test_mla_report_year_none_shows_nd():
     result = formatter.format_citation()
     
     assert "n.d." in result
-    expected = "Research, Institute,. *Technical Report*. Government Agency, n.d.."
+    expected = "Research, Institute,. <i>Technical Report</i>. Government Agency, n.d.."
     assert result == expected
 
 
@@ -418,6 +418,92 @@ def test_mla_authors_four_or_more_shows_et_al():
     many_authors = [f"Author{i} First{i}" for i in range(1, 11)]
     formatted_many = formatter._format_authors(many_authors)
     assert formatted_many == "First1, Author1, et al."
+
+
+def test_mla_authors_exactly_three_lists_all():
+    """Test MLA with exactly 3 authors lists all authors without et al."""
+    authors_list = ["Smith John", "Doe Jane", "Brown Bob"]
+    
+    citation = Citation(
+        type="book",
+        title="Three Authors Book",
+        authors=json.dumps(authors_list),
+        year=2023,
+        publisher="Academic Press"
+    )
+    formatter = MLAFormatter(citation)
+    formatted_authors = formatter._format_authors(authors_list)
+    
+    # Should list all three authors without et al.
+    assert "et al." not in formatted_authors
+    assert "John, Smith" in formatted_authors
+    assert "Doe Jane" in formatted_authors  # Second author format
+    assert "Brown Bob" in formatted_authors  # Third author format
+        # Test with 10 authors
+    many_authors = [f"Author{i} First{i}" for i in range(1, 11)]
+    formatted_many = formatter._format_authors(many_authors)
+    expected = "First1, Author1, et al."
+    assert formatted_many == expected
+
+
+def test_mla_title_case_conversion():
+    """Test MLA Title Case conversion with various scenarios."""
+    citation = Citation(type="book")
+    formatter = MLAFormatter(citation)
+    
+    # Test basic title case
+    assert formatter._to_title_case("the great gatsby") == "The Great Gatsby"
+    assert formatter._to_title_case("to kill a mockingbird") == "To Kill a Mockingbird"
+    
+    # Test articles and prepositions (should be lowercase unless first/last)
+    assert formatter._to_title_case("a tale of two cities") == "A Tale of Two Cities"
+    assert formatter._to_title_case("the lord of the rings") == "The Lord of the Rings"
+    assert formatter._to_title_case("much ado about nothing") == "Much Ado About Nothing"
+    
+    # Test first and last word always capitalized
+    assert formatter._to_title_case("in the beginning was the word") == "In the Beginning Was the Word"
+    assert formatter._to_title_case("gone with the wind") == "Gone with the Wind"
+    
+    # Test conjunctions
+    assert formatter._to_title_case("pride and prejudice") == "Pride and Prejudice"
+    assert formatter._to_title_case("romeo and juliet") == "Romeo and Juliet"
+    
+    # Test empty/None
+    assert formatter._to_title_case("") == ""
+    assert formatter._to_title_case(None) == ""
+
+
+def test_mla_book_with_title_case_complex():
+    """Test MLA book citation with complex title requiring Title Case."""
+    citation = Citation(
+        type="book",
+        title="the art of computer programming: a comprehensive introduction",
+        authors=json.dumps(["Donald Knuth"]),
+        year=1968,
+        publisher="Addison-Wesley"
+    )
+    formatter = MLAFormatter(citation)
+    result = formatter._format_book(formatter._format_authors(formatter._get_authors_list()))
+    expected = "Knuth, Donald. <i>The Art of Computer Programming: A Comprehensive Introduction</i>. Addison-Wesley, 1968."
+    assert result == expected
+
+
+def test_mla_article_with_title_case_complex():
+    """Test MLA article citation with complex titles requiring Title Case."""
+    citation = Citation(
+        type="article",
+        title="machine learning in the age of artificial intelligence",
+        authors=json.dumps(["Jane Smith"]),
+        year=2023,
+        journal="journal of computer science and technology",
+        volume=45,
+        issue="2",
+        pages="123-145"
+    )
+    formatter = MLAFormatter(citation)
+    result = formatter._format_article(formatter._format_authors(formatter._get_authors_list()))
+    expected = 'Smith, Jane. "Machine Learning in the Age of Artificial Intelligence." <i>Journal of Computer Science and Technology</i>, vol. 45, no. 2, 2023, pp. 123–145.'
+    assert result == expected
 
 
 def test_mla_authors_exactly_three_lists_all():

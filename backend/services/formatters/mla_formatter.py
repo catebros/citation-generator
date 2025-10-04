@@ -9,6 +9,56 @@ if TYPE_CHECKING:
 class MLAFormatter(BaseCitationFormatter):
     """MLA citation formatter implementation."""
     
+    def _to_title_case(self, title: str) -> str:
+        """Convert title to MLA Title Case format.
+        
+        Rules:
+        - Capitalize all major words
+        - Don't capitalize articles, prepositions, or short conjunctions 
+          (a, an, the, of, in, on, at, by, for, with, etc.) unless they are 
+          the first or last word of the title
+        - Capitalize words after colons
+        """
+        if not title:
+            return ""
+        
+        # Words that should not be capitalized (unless first or last word)
+        lowercase_words = {
+            'a', 'an', 'the', 'and', 'or', 'but', 'nor', 'for', 'so', 'yet',
+            'of', 'in', 'on', 'at', 'by', 'to', 'up', 'as', 'is', 'if', 'be',
+            'with', 'from', 'into', 'over', 'upon', 'onto', 'than', 'like',
+            'via', 'per', 'vs', 'vs.', 'v.', 'v'
+        }
+        
+        # Split by colon to handle subtitles
+        parts = title.split(':')
+        processed_parts = []
+        
+        for part in parts:
+            words = part.strip().split()
+            if not words:
+                processed_parts.append("")
+                continue
+            
+            title_case_words = []
+            
+            for i, word in enumerate(words):
+                # Remove punctuation for checking, but keep it for the final word
+                clean_word = word.strip('.,;:!?"()[]{}').lower()
+                
+                # Always capitalize first and last word of each part
+                if i == 0 or i == len(words) - 1:
+                    title_case_words.append(word.capitalize())
+                # Check if word should remain lowercase
+                elif clean_word in lowercase_words:
+                    title_case_words.append(word.lower())
+                else:
+                    title_case_words.append(word.capitalize())
+            
+            processed_parts.append(' '.join(title_case_words))
+        
+        return ': '.join(processed_parts)
+    
     def format_citation(self) -> str:
         """Generate MLA format citation."""
         authors = self._get_authors_list()
@@ -102,9 +152,10 @@ class MLAFormatter(BaseCitationFormatter):
         if authors:
             citation_parts.append(f"{authors}.")
         
-        # Title in italics
+        # Title in italics with Title Case
         if self.citation.title:
-            citation_parts.append(f"*{self.citation.title}*.")
+            title_case = self._to_title_case(self.citation.title)
+            citation_parts.append(f"<i>{title_case}</i>.")
         
         # Edition (if not first)
         if self.citation.edition and self.citation.edition != 1:
@@ -133,14 +184,16 @@ class MLAFormatter(BaseCitationFormatter):
         if authors:
             citation_parts.append(f"{authors}.")
         
-        # Article title in quotes
+        # Article title in quotes with Title Case
         if self.citation.title:
-            citation_parts.append(f'"{self.citation.title}."')
+            title_case = self._to_title_case(self.citation.title)
+            citation_parts.append(f'"{title_case}."')
         
         # Journal name in italics
         journal_part = []
         if self.citation.journal:
-            journal_part.append(f"*{self.citation.journal}*")
+            journal_title_case = self._to_title_case(self.citation.journal)
+            journal_part.append(f"<i>{journal_title_case}</i>")
             
             if self.citation.volume:
                 vol_issue = f"vol. {self.citation.volume}"
@@ -160,11 +213,11 @@ class MLAFormatter(BaseCitationFormatter):
         if journal_part:
             citation_parts.append(", ".join(journal_part) + ".")
         
-        # DOI or URL – should always be the last element, ending with a point
+        # DOI or URL – should always be the last element, NO period at end
         if self.citation.doi:
-            citation_parts.append(f"https://doi.org/{self.citation.doi}.")
+            citation_parts.append(f"https://doi.org/{self.citation.doi}")
         elif self.citation.url:
-            citation_parts.append(f"{self.citation.url}.")
+            citation_parts.append(f"{self.citation.url}")
         
         return " ".join(citation_parts)
 
@@ -179,20 +232,22 @@ class MLAFormatter(BaseCitationFormatter):
         if authors:
             citation_parts.append(f"{authors}.")
         
-        # Title in quotes
+        # Title in quotes with Title Case
         if self.citation.title:
-            citation_parts.append(f'"{self.citation.title}."')
+            title_case = self._to_title_case(self.citation.title)
+            citation_parts.append(f'"{title_case}."')
         
-        # Website name in italics
+        # Website name in italics with Title Case
         if self.citation.publisher:
-            website_part = f"*{self.citation.publisher}*"
+            publisher_title_case = self._to_title_case(self.citation.publisher)
+            website_part = f"<i>{publisher_title_case}</i>"
             citation_parts.append(f"{website_part},")
         
         # With publication date
         if self.citation.year:
             citation_parts.append(f"{self.citation.year},")
             if self.citation.url:
-                citation_parts.append(f"{self.citation.url}.")
+                citation_parts.append(f"{self.citation.url}")
         else:
             # Without publication date -> include access date
             if self.citation.url:
@@ -208,16 +263,17 @@ class MLAFormatter(BaseCitationFormatter):
     
     def _format_report(self, authors: str) -> str:
         """Generate MLA report citation.
-        Format: Author. *Title of Report*. Institution/Publisher, Year. URL.
+        Format: Author. <i>Title of Report</i>. Institution/Publisher, Year. URL.
         """
         citation_parts = []
         
         if authors:
             citation_parts.append(f"{authors}.")
         
-        # Title in italics
+        # Title in italics with Title Case
         if self.citation.title:
-            citation_parts.append(f"*{self.citation.title}*.")
+            title_case = self._to_title_case(self.citation.title)
+            citation_parts.append(f"<i>{title_case}</i>.")
         
         # Institution/Publisher + Year (grouped to avoid double commas)
         if self.citation.publisher:
@@ -228,8 +284,8 @@ class MLAFormatter(BaseCitationFormatter):
                 pub_year += ", n.d."
             citation_parts.append(f"{pub_year}.")
         
-        # URL
+        # URL without period at end
         if self.citation.url:
-            citation_parts.append(f"{self.citation.url}.")
+            citation_parts.append(f"{self.citation.url}")
         
         return " ".join(citation_parts)

@@ -310,7 +310,7 @@ def test_format_citation_apa(citation_service, project_service):
     result = citation_service.format_citation(citation, "apa")
     assert "Author" in result
     assert "2020" in result
-    assert "Test Book" in result
+    assert "Test book" in result  # APA uses sentence case
 
 def test_format_citation_mla(citation_service, project_service):
     """Format mla instantiates MLAFormatter"""

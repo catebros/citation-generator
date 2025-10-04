@@ -8,6 +8,66 @@ if TYPE_CHECKING:
 class APAFormatter(BaseCitationFormatter):
     """APA citation formatter implementation."""
     
+    def _to_sentence_case(self, title: str) -> str:
+        """Convert title to APA Sentence Case format (7th edition).
+        
+        Rules:
+        - Only the first word of the title is capitalized
+        - Only the first word after a colon is capitalized
+        - Proper nouns and acronyms remain capitalized
+        """
+        if not title:
+            return ""
+        
+        # Known acronyms and abbreviations that should stay uppercase
+        acronyms = {'API', 'AI', 'ML', 'IT', 'UI', 'UX', 'CEO', 'CTO', 'HTML', 'CSS', 'JS', 'SQL', 'XML', 'HTTP', 'HTTPS', 'URL', 'JSON', 'PDF'}
+        
+        # Split by colon to handle subtitles
+        parts = title.split(':')
+        processed_parts = []
+        
+        for part_index, part in enumerate(parts):
+            part = part.strip()
+            if not part:
+                processed_parts.append("")
+                continue
+                
+            words = part.split()
+            if not words:
+                processed_parts.append("")
+                continue
+            
+            sentence_words = []
+            for i, word in enumerate(words):
+                # Extract punctuation
+                punctuation = ""
+                clean_word = word
+                while clean_word and clean_word[-1] in '.,;:!?"()[]{}':
+                    punctuation = clean_word[-1] + punctuation
+                    clean_word = clean_word[:-1]
+                
+                if not clean_word:
+                    sentence_words.append(word)
+                    continue
+                
+                # Check if it's a known acronym
+                if clean_word.upper() in acronyms:
+                    sentence_words.append(clean_word.upper() + punctuation)
+                # Check if it's a short all-caps acronym (2-5 letters, all uppercase)
+                elif len(clean_word) >= 2 and len(clean_word) <= 5 and clean_word.isupper():
+                    sentence_words.append(word)  # Keep short acronyms as is
+                # First word of title or first word after colon - capitalize
+                elif i == 0:
+                    capitalized = clean_word[0].upper() + clean_word[1:].lower()
+                    sentence_words.append(capitalized + punctuation)
+                # All other words - lowercase
+                else:
+                    sentence_words.append(clean_word.lower() + punctuation)
+            
+            processed_parts.append(' '.join(sentence_words))
+        
+        return ': '.join(processed_parts)
+    
     def format_citation(self) -> str:
         """Generate APA format citation."""
         authors = self._get_authors_list()
@@ -85,9 +145,10 @@ class APAFormatter(BaseCitationFormatter):
         else:
             citation_parts.append("(n.d.)")
         
-        # Title with edition if available
+        # Title with edition if available (using Sentence case)
         if self.citation.title:
-            title_part = f"<i>{self.citation.title}</i>"
+            title_sentence_case = self._to_sentence_case(self.citation.title)
+            title_part = f"<i>{title_sentence_case}</i>"
             if self.citation.edition and self.citation.edition != 1:
                 # Normalize edition format for APA
                 edition_text = self._normalize_edition(self.citation.edition)
@@ -121,9 +182,10 @@ class APAFormatter(BaseCitationFormatter):
         else:
             citation_parts.append("(n.d.)")
             
-        # Article titles are NOT in italics in APA
+        # Article titles are NOT in italics in APA (using Sentence case)
         if self.citation.title:
-            citation_parts.append(self.citation.title)
+            title_sentence_case = self._to_sentence_case(self.citation.title)
+            citation_parts.append(title_sentence_case)
         
         journal_part = ""
         if self.citation.journal:
@@ -174,7 +236,8 @@ class APAFormatter(BaseCitationFormatter):
             citation_parts.append("(n.d.)")
         
         if self.citation.title:
-            citation_parts.append(self.citation.title)
+            title_sentence_case = self._to_sentence_case(self.citation.title)
+            citation_parts.append(title_sentence_case)
         
         # Add website name (publisher field) - Nombre del sitio
         if self.citation.publisher:
@@ -210,8 +273,9 @@ class APAFormatter(BaseCitationFormatter):
             citation_parts.append("(n.d.)")
             
         if self.citation.title:
-            # Title with report type specification
-            title_part = f"<i>{self.citation.title}</i> [Report]"
+            # Title with report type specification (using Sentence case)
+            title_sentence_case = self._to_sentence_case(self.citation.title)
+            title_part = f"<i>{title_sentence_case}</i> [Report]"
             citation_parts.append(title_part)
         
         # Add institution/organization (publisher)

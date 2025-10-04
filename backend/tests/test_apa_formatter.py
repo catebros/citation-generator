@@ -44,7 +44,7 @@ def test_apa_book_complete_data():
     )
     formatter = APAFormatter(citation)
     result = formatter._format_book(formatter._format_authors(formatter._get_authors_list()))
-    expected = "Smith, J., & Doe, A. (2023). <i>The Great Book</i> (2nd ed.). Academic Press."
+    expected = "Smith, J., & Doe, A. (2023). <i>The great book</i> (2nd ed.). Academic Press."
     assert result == expected
 
 def test_apa_book_minimal_data():
@@ -58,7 +58,7 @@ def test_apa_book_minimal_data():
     )
     formatter = APAFormatter(citation)
     result = formatter._format_book(formatter._format_authors(formatter._get_authors_list()))
-    expected = "Author, A. (2023). <i>Simple Book</i>. Publisher."
+    expected = "Author, A. (2023). <i>Simple book</i>. Publisher."
     assert result == expected
 
 def test_apa_book_first_edition_ignored():
@@ -73,7 +73,7 @@ def test_apa_book_first_edition_ignored():
     )
     formatter = APAFormatter(citation)
     result = formatter._format_book(formatter._format_authors(formatter._get_authors_list()))
-    expected = "Author, A. (2023). <i>First Edition Book</i>. Publisher."
+    expected = "Author, A. (2023). <i>First edition book</i>. Publisher."
     assert result == expected
 
 def test_apa_article_complete_data():
@@ -91,7 +91,7 @@ def test_apa_article_complete_data():
     )
     formatter = APAFormatter(citation)
     result = formatter._format_article(formatter._format_authors(formatter._get_authors_list()))
-    expected = "Johnson, M., Brown, K., & Wilson, R. (2022). Research Findings. <i>Science Journal</i>, <i>45</i>(3), 123–145. https://doi.org/10.1234/science.2022"
+    expected = "Johnson, M., Brown, K., & Wilson, R. (2022). Research findings. <i>Science Journal</i>, <i>45</i>(3), 123–145. https://doi.org/10.1234/science.2022"
     assert result == expected
 
 def test_apa_article_without_doi():
@@ -108,7 +108,7 @@ def test_apa_article_without_doi():
     )
     formatter = APAFormatter(citation)
     result = formatter._format_article(formatter._format_authors(formatter._get_authors_list()))
-    expected = "Author, A. (2023). Article Without DOI. <i>Test Journal</i>, <i>1</i>(2), 10–20."
+    expected = "Author, A. (2023). Article without DOI. <i>Test Journal</i>, <i>1</i>(2), 10–20."
     assert result == expected
 
 def test_apa_article_without_issue():
@@ -124,7 +124,7 @@ def test_apa_article_without_issue():
     )
     formatter = APAFormatter(citation)
     result = formatter._format_article(formatter._format_authors(formatter._get_authors_list()))
-    expected = "Author, A. (2023). Article Without Issue. <i>Test Journal</i>, <i>1</i>, 10–20."
+    expected = "Author, A. (2023). Article without issue. <i>Test Journal</i>, <i>1</i>, 10–20."
     assert result == expected
 
 def test_apa_website_complete_data():
@@ -139,7 +139,7 @@ def test_apa_website_complete_data():
     )
     formatter = APAFormatter(citation)
     result = formatter._format_website(formatter._format_authors(formatter._get_authors_list()))
-    expected = "Author, W. (2024). Online Resource. <i>Example Website</i>. https://example.com/resource"
+    expected = "Author, W. (2024). Online resource. <i>Example Website</i>. https://example.com/resource"
     assert result == expected
 
 def test_apa_website_minimal_data():
@@ -154,7 +154,7 @@ def test_apa_website_minimal_data():
     )
     formatter = APAFormatter(citation)
     result = formatter._format_website(formatter._format_authors(formatter._get_authors_list()))
-    expected = "Author, W. (2024). Website Title. <i>Sample Site</i>. https://example.com"
+    expected = "Author, W. (2024). Website title. <i>Sample Site</i>. https://example.com"
     assert result == expected
 
 def test_apa_report_complete_data():
@@ -169,7 +169,7 @@ def test_apa_report_complete_data():
     )
     formatter = APAFormatter(citation)
     result = formatter._format_report(formatter._format_authors(formatter._get_authors_list()))
-    expected = "Graduate, S. (2021). <i>Annual Report on Climate Change</i> [Report]. Environmental Research Institute. https://example.org/climate-report-2021"
+    expected = "Graduate, S. (2021). <i>Annual report on climate change</i> [Report]. Environmental Research Institute. https://example.org/climate-report-2021"
     assert result == expected
 
 def test_apa_report_without_url():
@@ -183,7 +183,7 @@ def test_apa_report_without_url():
     )
     formatter = APAFormatter(citation)
     result = formatter._format_report(formatter._format_authors(formatter._get_authors_list()))
-    expected = "Student, M. (2023). <i>Technical Report</i> [Report]. Tech Research Corp."
+    expected = "Student, M. (2023). <i>Technical report</i> [Report]. Tech Research Corp."
     assert result == expected
 
 def test_apa_citation_missing_fields_handled_gracefully():
@@ -197,7 +197,7 @@ def test_apa_citation_missing_fields_handled_gracefully():
     )
     formatter = APAFormatter(citation)
     result = formatter._format_book(formatter._format_authors(formatter._get_authors_list()))
-    expected = "(n.d.). <i>Incomplete Book</i>."
+    expected = "(n.d.). <i>Incomplete book</i>."
     assert result == expected
 
 def test_apa_citation_unsupported_type():
@@ -226,7 +226,7 @@ def test_apa_book_no_authors():
     )
     formatter = APAFormatter(citation)
     result = formatter._format_book(formatter._format_authors(formatter._get_authors_list()))
-    expected = "(2023). <i>Authorless Book</i>. Anonymous Press."
+    expected = "(2023). <i>Authorless book</i>. Anonymous Press."
     assert result == expected
 
 def test_apa_article_no_volume_or_pages():
@@ -240,7 +240,7 @@ def test_apa_article_no_volume_or_pages():
     )
     formatter = APAFormatter(citation)
     result = formatter._format_article(formatter._format_authors(formatter._get_authors_list()))
-    expected = "Author, A. (2023). Basic Article. <i>Simple Journal</i>."
+    expected = "Author, A. (2023). Basic article. <i>Simple Journal</i>."
     assert result == expected
 
 def test_apa_website_no_url():
@@ -254,7 +254,7 @@ def test_apa_website_no_url():
     )
     formatter = APAFormatter(citation)
     result = formatter._format_website(formatter._format_authors(formatter._get_authors_list()))
-    expected = "Author, A. (2023). Website Without URL. <i>Test Site</i>."
+    expected = "Author, A. (2023). Website without URL. <i>Test Site</i>."
     assert result == expected
 
 def test_apa__normalize_edition_various():
@@ -322,7 +322,7 @@ def test_apa_book_with_advanced_edition_in_real_citation():
     result = formatter.format_citation()
     
     assert "21st ed." in result
-    expected = "A., S. J., & B., D. J. (2023). <i>Advanced Research Methods</i> (21st ed.). Academic Press."
+    expected = "A., S. J., & B., D. J. (2023). <i>Advanced research methods</i> (21st ed.). Academic Press."
     assert result == expected
 
 
@@ -341,7 +341,7 @@ def test_apa_article_year_none_shows_nd():
     result = formatter.format_citation()
     
     assert "(n.d.)" in result
-    expected = "First, A. (n.d.). Article Without Year. <i>Test Journal</i>, <i>5</i>, 10–20."
+    expected = "First, A. (n.d.). Article without year. <i>Test Journal</i>, <i>5</i>, 10–20."
     assert result == expected
 
 
@@ -360,7 +360,7 @@ def test_apa_article_multiple_page_ranges():
     result = formatter.format_citation()
     
     assert "123–125, 200–210" in result
-    expected = "A., R. (2023). Complex Study. <i>Research Journal</i>, <i>10</i>, 123–125, 200–210."
+    expected = "A., R. (2023). Complex study. <i>Research Journal</i>, <i>10</i>, 123–125, 200–210."
     assert result == expected
 
 
@@ -378,7 +378,7 @@ def test_apa_website_year_none_shows_nd():
     result = formatter.format_citation()
     
     assert "(n.d.)" in result
-    expected = "Author, W. (n.d.). Website Without Year. <i>Example Site</i>. https://example.com"
+    expected = "Author, W. (n.d.). Website without year. <i>Example Site</i>. https://example.com"
     assert result == expected
 
 
@@ -395,7 +395,7 @@ def test_apa_report_year_none_shows_nd():
     result = formatter.format_citation()
     
     assert "(n.d.)" in result
-    expected = "Staff, I. (n.d.). <i>Annual Report</i> [Report]. Research Institution."
+    expected = "Staff, I. (n.d.). <i>Annual report</i> [Report]. Research Institution."
     assert result == expected
 
 
@@ -406,7 +406,7 @@ def test_apa_authors_more_than_20_shows_ellipsis():
     
     citation = Citation(
         type="book",
-        title="Collaborative Research",
+        title="Collaborative research",
         authors=json.dumps(authors_list),
         year=2023,
         publisher="Academic Press"
@@ -438,7 +438,7 @@ def test_apa_authors_exactly_20_no_ellipsis():
     
     citation = Citation(
         type="book",
-        title="Twenty Authors Book",
+        title="Twenty authors book",
         authors=json.dumps(authors_list),
         year=2023,
         publisher="Academic Press"
