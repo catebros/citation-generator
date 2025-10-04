@@ -1,3 +1,4 @@
+# backend/main.py
 """
 Main FastAPI application for the Citation Generator API.
 Provides endpoints for managing projects, citations, and bibliography formatting.

@@ -1,3 +1,4 @@
+# backend/routers/projects.py
 """
 Project-related API endpoints.
 Handles CRUD operations for projects.

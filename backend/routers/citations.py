@@ -1,3 +1,4 @@
+# backend/routers/citations.py
 """
 Citation-related API endpoints.
 Handles CRUD operations for citations and formatting.

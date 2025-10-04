@@ -1,3 +1,4 @@
+# backend/dependencies.py
 """
 FastAPI dependency injection functions.
 Handles database session and service dependencies.
