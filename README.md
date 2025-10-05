@@ -9,45 +9,122 @@ A web application for generating bibliographic citations in APA and MLA formats.
 - Node.js 16+
 
 
+
 ### 1. Initial Setup (One Time Only)
-```bash
+
+#### Windows (PowerShell)
+```powershell
 git clone https://github.com/catebros/citation-generator.git
 cd citation-generator
 python -m venv venv
-.\venv\Scripts\activate                    # Windows (use source venv/bin/activate for macOS/Linux)
+. venv\Scripts\Activate.ps1
 pip install -r requirements.txt
 cd frontend
 npm install  
-cd ..         # Go back to root if you want to continue with backend setup
+cd ..
 ```
+
+#### macOS / Linux (bash/zsh)
+```bash
+git clone https://github.com/catebros/citation-generator.git
+cd citation-generator
+python3 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+cd frontend
+npm install   
+cd ..
+```
+
+> Every time you open a new terminal, start from the folder created by `git clone` (the repo root), activate the venv, and then cd into the correct subfolder before running backend/frontend commands.
+
 
 ### 2. Development Mode
-```bash
-# Terminal 1: Start Backend
-cd backend
-python -m uvicorn main:app --reload       # -> http://localhost:8000
 
-# Terminal 2: Start Frontend Development
-cd frontend
-npm run dev                               # -> http://localhost:3000
+#### Windows (PowerShell)
+Open a new terminal, then:
+```powershell
+cd path\to\citation-generator
+.venv\Scripts\Activate.ps1
+cd backend
+python -m uvicorn main:app --reload
 ```
+Open another terminal for frontend:
+```powershell
+cd path\to\citation-generator
+cd frontend
+npm run dev
+```
+
+#### macOS / Linux (bash/zsh)
+Open a new terminal, then:
+```bash
+cd path/to/citation-generator
+source venv/bin/activate
+cd backend
+python -m uvicorn main:app --reload
+```
+Open another terminal for frontend:
+```bash
+cd path/to/citation-generator
+cd frontend
+npm run dev
+```
+
 
 ### 3. Production Mode (Optional)
-```bash
-# Terminal 1: Start Backend (same as above)
-cd backend
-python -m uvicorn main:app --host 127.0.0.1 --port 8000    # -> http://localhost:8000
 
-# Terminal 2: Build & Preview Production Frontend
+#### Windows (PowerShell)
+Open a new terminal, then:
+```powershell
+cd path\to\citation-generator
+.venv\Scripts\Activate.ps1
+cd backend
+python -m uvicorn main:app --host 127.0.0.1 --port 8000
+```
+Open another terminal for frontend:
+```powershell
+cd path\to\citation-generator
 cd frontend
 npm run build
-npm run preview                           # -> http://localhost:4173
+npm run preview
 ```
 
-### 4. Add Sample Data (Optional)
+#### macOS / Linux (bash/zsh)
+Open a new terminal, then:
 ```bash
+cd path/to/citation-generator
+source venv/bin/activate
 cd backend
-python populate_db.py                    # Adds sample projects and citations
+python -m uvicorn main:app --host 127.0.0.1 --port 8000
+```
+Open another terminal for frontend:
+```bash
+cd path/to/citation-generator
+cd frontend
+npm run build
+npm run preview
+```
+
+
+### 4. Add Sample Data (Optional)
+
+#### Windows (PowerShell)
+Open a new terminal, then:
+```powershell
+cd path\to\citation-generator
+.venv\Scripts\Activate.ps1
+cd backend
+python populate_db.py
+```
+
+#### macOS / Linux (bash/zsh)
+Open a new terminal, then:
+```bash
+cd path/to/citation-generator
+source venv/bin/activate
+cd backend
+python populate_db.py
 ```
 
 ### URLs Summary
