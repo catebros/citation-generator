@@ -8,6 +8,7 @@ A web application for generating bibliographic citations in APA and MLA formats.
 - Python 3.8+
 - Node.js 16+
 
+
 ### 1. Initial Setup (One Time Only)
 ```bash
 git clone https://github.com/catebros/citation-generator.git
@@ -15,6 +16,9 @@ cd citation-generator
 python -m venv venv
 .\venv\Scripts\activate                    # Windows (use source venv/bin/activate for macOS/Linux)
 pip install -r requirements.txt
+cd frontend
+npm install  
+cd ..         # Go back to root if you want to continue with backend setup
 ```
 
 ### 2. Development Mode
@@ -25,7 +29,7 @@ python -m uvicorn main:app --reload       # -> http://localhost:8000
 
 # Terminal 2: Start Frontend Development
 cd frontend
-npm install
+npm install # only once
 npm run dev                               # -> http://localhost:3000
 ```
 
