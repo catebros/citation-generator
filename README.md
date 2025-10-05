@@ -29,7 +29,6 @@ python -m uvicorn main:app --reload       # -> http://localhost:8000
 
 # Terminal 2: Start Frontend Development
 cd frontend
-npm install # only once
 npm run dev                               # -> http://localhost:3000
 ```
 
