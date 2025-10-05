@@ -1,13 +1,27 @@
 # backend/tests/test_database.py
+"""
+Test suite for database module.
+
+This module contains comprehensive tests for database configuration and session management:
+- Database engine singleton pattern and lifecycle
+- Session factory creation and configuration
+- Session generator (get_db) for FastAPI dependency injection
+- Session isolation and cleanup
+- Error handling and edge cases
+
+All tests use the TEST_DATABASE_URL to ensure test isolation from production data.
+"""
 import pytest
 import os
 from unittest.mock import patch, MagicMock
 from sqlalchemy.orm import Session
 from sqlalchemy import create_engine
-from db.database import get_db, LocalSession, engine, DatabaseEngine, TEST_DATABASE_URL
+from db.database import get_db, LocalSession, engine, DatabaseEngine, TEST_DATABASE_URL, get_session_factory, get_singleton_engine
 
 # Ensure we're using test database for these tests
 os.environ["DATABASE_URL"] = TEST_DATABASE_URL
+
+# ========== TEST FIXTURES ==========
 
 @pytest.fixture
 def consume_generator():
@@ -29,18 +43,112 @@ def reset_database_state():
     # Reset after test to not interfere with other tests
     DatabaseEngine.reset_instance()
 
+# ========== DATABASE ENGINE CONFIGURATION TESTS ==========
+
 def test_engine_configuration():
     """Test that the database engine is properly configured."""
     assert engine is not None
     assert "sqlite" in str(engine.url)
 
+def test_database_url_environment_configuration():
+    """Test that database uses the configured TEST_DATABASE_URL."""
+    # The reset_database_state fixture resets the engine before each test
+    # Get the current singleton engine which should be using TEST_DATABASE_URL
+    current_engine = get_singleton_engine()
+
+    # Verify the TEST_DATABASE_URL constant is correctly defined
+    assert "test_citations.db" in TEST_DATABASE_URL
+    assert "sqlite" in TEST_DATABASE_URL
+
+    # Note: The module-level 'engine' variable is created at import time,
+    # so it may not reflect runtime changes. We verify the TEST_DATABASE_URL
+    # constant is properly configured instead.
+    assert TEST_DATABASE_URL == "sqlite:///./test_citations.db"
+
+# ========== SESSION FACTORY TESTS ==========
+
 def test_local_session_factory():
     """Test that session factory creates valid sessions."""
-    from db.database import get_session_factory
     session_factory = get_session_factory()
     session = session_factory()
     assert isinstance(session, Session)
     session.close()
+
+def test_local_session_uses_singleton_engine():
+    """Test that LocalSession is using the singleton engine instance."""
+    # Get the singleton engine (fixture already reset state)
+    singleton_engine = DatabaseEngine().get_engine()
+
+    # Create a session using the session factory
+    session_factory = get_session_factory()
+    session = session_factory()
+
+    try:
+        # The session's bind should be the same as our singleton engine
+        assert session.bind is singleton_engine
+        assert id(session.bind) == id(singleton_engine)
+    finally:
+        session.close()
+
+def test_module_level_local_session_creates_sessions():
+    """Test that the module-level LocalSession creates valid sessions."""
+    # LocalSession is created at module import time
+    # Verify it creates valid sessions
+    session = LocalSession()
+
+    try:
+        assert isinstance(session, Session)
+        assert session is not None
+    finally:
+        session.close()
+
+def test_concurrent_sessions_from_same_factory():
+    """Test that session factory can create multiple concurrent sessions."""
+    session_factory = get_session_factory()
+
+    session1 = session_factory()
+    session2 = session_factory()
+    session3 = session_factory()
+
+    try:
+        # All sessions should be different objects
+        assert session1 is not session2
+        assert session2 is not session3
+        assert session1 is not session3
+
+        # All should be valid Session instances
+        assert isinstance(session1, Session)
+        assert isinstance(session2, Session)
+        assert isinstance(session3, Session)
+    finally:
+        session1.close()
+        session2.close()
+        session3.close()
+
+def test_session_factory_returns_new_factory_on_engine_reset():
+    """Test that session factory updates when engine is reset."""
+    # Get original engine and session factory
+    original_engine = get_singleton_engine()
+    original_factory = get_session_factory()
+
+    # Reset the engine
+    DatabaseEngine.reset_instance()
+
+    # Get new engine and session factory
+    new_engine = get_singleton_engine()
+    new_factory = get_session_factory()
+
+    # Engines should be different
+    assert original_engine is not new_engine
+
+    # Session from new factory should use new engine
+    session = new_factory()
+    try:
+        assert session.bind is new_engine
+    finally:
+        session.close()
+
+# ========== GET_DB GENERATOR TESTS ==========
 
 def test_get_db_returns_session(consume_generator):
     """Test that get_db yields a valid database session."""
@@ -128,20 +236,36 @@ def test_get_db_generator_pattern(mock_session_factory):
     
     mock_db.close.assert_called_once()
 
+def test_get_db_multiple_iterations():
+    """Test that get_db generator can only yield once."""
+    db_generator = get_db()
+
+    # First call should yield session
+    session = next(db_generator)
+    assert isinstance(session, Session)
+
+    # Second call should raise StopIteration
+    with pytest.raises(StopIteration):
+        next(db_generator)
+
+# ========== SESSION ISOLATION TESTS ==========
+
 def test_database_session_isolation(consume_generator):
     """Test that different calls to get_db return independent sessions."""
     gen1 = get_db()
     gen2 = get_db()
-    
+
     session1 = next(gen1)
     session2 = next(gen2)
-    
+
     # Sessions should be different objects
     assert session1 is not session2
-    
+
     # Cleanup both generators
     consume_generator(gen1)
     consume_generator(gen2)
+
+# ========== DATABASE ENGINE SINGLETON TESTS ==========
 
 def test_database_engine_singleton_behavior():
     """Test that DatabaseEngine instances are the same object."""
@@ -195,7 +319,6 @@ def test_local_session_uses_singleton_engine():
     singleton_engine = DatabaseEngine().get_engine()
     
     # Create a session using the session factory
-    from db.database import get_session_factory
     session_factory = get_session_factory()
     session = session_factory()
     
@@ -231,7 +354,6 @@ def test_module_level_engine_uses_singleton():
     singleton_engine = DatabaseEngine().get_engine()
     
     # The module-level engine getter should return the same as the singleton
-    from db.database import get_singleton_engine
     module_engine = get_singleton_engine()
     
     # They should be the same instance

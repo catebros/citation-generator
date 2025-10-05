@@ -1,4 +1,17 @@
 # backend/tests/test_project_service.py
+"""
+Test suite for ProjectService class.
+
+This module contains comprehensive tests for all project operations including:
+- Project creation with name validation and uniqueness checking
+- Project retrieval by ID and listing all projects
+- Project updates with name conflict detection
+- Project deletion with cascade to citations
+- Citation retrieval by project
+- Bibliography generation in APA and MLA formats
+
+All tests use in-memory SQLite database for fast, isolated testing.
+"""
 import pytest
 from fastapi import HTTPException
 from sqlalchemy import create_engine
@@ -6,6 +19,7 @@ from sqlalchemy.orm import sessionmaker
 from models.base import Base
 from models.project import Project
 from services.project_service import ProjectService
+from services.citation_service import CitationService
 from repositories.project_repo import ProjectRepository
 from repositories.citation_repo import CitationRepository
 from services.validators.project_validator import (
@@ -15,6 +29,7 @@ from services.validators.project_validator import (
 
 @pytest.fixture(scope="function")
 def db_session():
+    """Create a fresh in-memory database for each test."""
     engine = create_engine("sqlite:///:memory:")
     Base.metadata.create_all(engine)
     SessionLocal = sessionmaker(bind=engine)
@@ -24,6 +39,7 @@ def db_session():
 
 @pytest.fixture
 def project_service(db_session):
+    """Provide a ProjectService instance with test database."""
     return ProjectService(db_session)
 
 # ========== CREATE_PROJECT TESTS ==========
@@ -84,15 +100,21 @@ def test_get_project_found(project_service):
 
 # ========== GET_ALL_PROJECTS TESTS ==========
 
+def test_get_all_projects_empty(project_service):
+    """Returns empty list when no projects exist"""
+    result = project_service.get_all_projects()
+    assert len(result) == 0
+    assert result == []
+
 def test_get_all_projects(project_service):
     """Returns list of projects"""
     # Create some projects
     project_service.create_project({"name": "Project 1"})
     project_service.create_project({"name": "Project 2"})
-    
+
     result = project_service.get_all_projects()
     assert len(result) == 2
-    
+
     project_names = [p.name for p in result]
     assert "Project 1" in project_names
     assert "Project 2" in project_names
@@ -132,11 +154,31 @@ def test_update_project_valid_case(project_service):
     """Valid case calls validate_project_data and update returns updated project"""
     # Create project
     project = project_service.create_project({"name": "Original Name"})
-    
+
     # Update project
     result = project_service.update_project(project.id, {"name": "Updated Name"})
     assert result.id == project.id
     assert result.name == "Updated Name"
+
+def test_update_project_validation_error(project_service):
+    """Validation error with empty name returns HTTP 400"""
+    # Create project
+    project = project_service.create_project({"name": "Original Name"})
+
+    # Try to update with empty name
+    with pytest.raises(HTTPException) as exc_info:
+        project_service.update_project(project.id, {"name": ""})
+    assert exc_info.value.status_code == 400
+
+def test_update_project_same_name(project_service):
+    """Updating project with its own name should succeed"""
+    # Create project
+    project = project_service.create_project({"name": "Project Name"})
+
+    # Update with same name (should succeed)
+    result = project_service.update_project(project.id, {"name": "Project Name"})
+    assert result.id == project.id
+    assert result.name == "Project Name"
 
 # ========== DELETE_PROJECT TESTS ==========
 
@@ -156,10 +198,38 @@ def test_delete_project_valid_case(project_service):
     """Valid case returns message Project deleted"""
     # Create project
     project = project_service.create_project({"name": "Test Project"})
-    
+
     # Delete project
     result = project_service.delete_project(project.id)
     assert result == {"message": "Project deleted"}
+
+def test_delete_project_with_citations(project_service, db_session):
+    """Deleting project with citations should succeed"""
+    citation_service = CitationService(db_session)
+
+    # Create project
+    project = project_service.create_project({"name": "Test Project"})
+
+    # Create citation
+    citation_data = {
+        "type": "book",
+        "title": "Test Book",
+        "authors": ["Test Author"],
+        "year": 2020,
+        "publisher": "Test Publisher",
+        "place": "Test City",
+        "edition": 1
+    }
+    citation_service.create_citation(project.id, citation_data)
+
+    # Delete project
+    result = project_service.delete_project(project.id)
+    assert result == {"message": "Project deleted"}
+
+    # Verify project is deleted
+    with pytest.raises(HTTPException) as exc_info:
+        project_service.get_project(project.id)
+    assert exc_info.value.status_code == 404
 
 # ========== GET_ALL_CITATIONS_BY_PROJECT TESTS ==========
 
@@ -177,12 +247,11 @@ def test_get_all_citations_by_project_not_exists(project_service):
 
 def test_get_all_citations_by_project_valid_case(project_service, db_session):
     """Valid case returns list of citations"""
-    from services.citation_service import CitationService
     citation_service = CitationService(db_session)
-    
+
     # Create project
     project = project_service.create_project({"name": "Test Project"})
-    
+
     # Create citations
     citation_data = {
         "type": "book",
@@ -194,11 +263,60 @@ def test_get_all_citations_by_project_valid_case(project_service, db_session):
         "edition": 1
     }
     citation_service.create_citation(project.id, citation_data)
-    
+
     # Get citations
     result = project_service.get_all_citations_by_project(project.id)
     assert len(result) == 1
     assert result[0].title == "Test Book"
+
+def test_get_all_citations_by_project_multiple(project_service, db_session):
+    """Returns multiple citations for project"""
+    citation_service = CitationService(db_session)
+
+    # Create project
+    project = project_service.create_project({"name": "Test Project"})
+
+    # Create multiple citations
+    citation_data1 = {
+        "type": "book",
+        "title": "Book One",
+        "authors": ["Author One"],
+        "year": 2020,
+        "publisher": "Publisher A",
+        "place": "City A",
+        "edition": 1
+    }
+    citation_data2 = {
+        "type": "article",
+        "title": "Article Two",
+        "authors": ["Author Two"],
+        "year": 2021,
+        "journal": "Journal B",
+        "volume": 1,
+        "issue": "1",
+        "pages": "1-10",
+        "doi": "10.1000/test"
+    }
+    citation_service.create_citation(project.id, citation_data1)
+    citation_service.create_citation(project.id, citation_data2)
+
+    # Get citations
+    result = project_service.get_all_citations_by_project(project.id)
+    assert len(result) == 2
+
+    titles = [c.title for c in result]
+    assert "Book One" in titles
+    assert "Article Two" in titles
+
+def test_get_all_citations_by_project_empty(project_service):
+    """Project with no citations returns empty list"""
+    # Create project without citations
+    project = project_service.create_project({"name": "Empty Project"})
+
+    # Get citations
+    result = project_service.get_all_citations_by_project(project.id)
+    assert len(result) == 0
+    assert result == []
 
 # ========== GENERATE_BIBLIOGRAPHY_BY_PROJECT TESTS ==========
 
@@ -225,7 +343,6 @@ def test_generate_bibliography_no_citations(project_service):
 
 def test_generate_bibliography_with_citations(project_service, db_session):
     """Project with valid citations calls CitationService.format_citation and returns list"""
-    from services.citation_service import CitationService
     citation_service = CitationService(db_session)
     
     # Create project
@@ -250,12 +367,11 @@ def test_generate_bibliography_with_citations(project_service, db_session):
 
 def test_generate_bibliography_unsupported_format_fallback(project_service, db_session):
     """Unsupported format in citation falls back to APA"""
-    from services.citation_service import CitationService
     citation_service = CitationService(db_session)
-    
+
     # Create project
     project = project_service.create_project({"name": "Test Project"})
-    
+
     # Create citation
     citation_data = {
         "type": "book",
@@ -267,11 +383,38 @@ def test_generate_bibliography_unsupported_format_fallback(project_service, db_s
         "edition": 1
     }
     citation_service.create_citation(project.id, citation_data)
-    
+
     # Try unsupported format - should fallback to APA
     result = project_service.generate_bibliography_by_project(project.id, "chicago")
     assert result["citation_count"] == 1
     assert len(result["bibliography"]) == 1
     # Should still generate citation using fallback
     assert "Author" in result["bibliography"][0]
+
+def test_generate_bibliography_mla_format(project_service, db_session):
+    """Generate bibliography with MLA format"""
+    citation_service = CitationService(db_session)
+
+    # Create project
+    project = project_service.create_project({"name": "Test Project"})
+
+    # Create citation
+    citation_data = {
+        "type": "book",
+        "title": "Test Book",
+        "authors": ["Test Author"],
+        "year": 2020,
+        "publisher": "Test Publisher",
+        "place": "Test City",
+        "edition": 1
+    }
+    citation_service.create_citation(project.id, citation_data)
+
+    # Generate bibliography in MLA format
+    result = project_service.generate_bibliography_by_project(project.id, "mla")
+    assert result["citation_count"] == 1
+    assert result["format_type"] == "mla"
+    assert len(result["bibliography"]) == 1
+    assert "Author" in result["bibliography"][0]
+    assert "Test Book" in result["bibliography"][0]
 

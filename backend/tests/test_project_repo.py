@@ -1,4 +1,40 @@
 # backend/tests/test_project_repo.py
+"""
+Test suite for ProjectRepository class.
+
+This module contains comprehensive tests for the ProjectRepository which handles
+database operations for projects. The tests cover all CRUD operations and complex
+scenarios including:
+
+- Project creation and retrieval
+- Updating project information
+- Deleting projects with various citation scenarios
+- Orphan citation cleanup when projects are deleted
+- Shared citation preservation across multiple projects
+- Case-insensitive project name search
+- Citation retrieval by project
+- Ordering verification for query results
+
+Test organization:
+- CREATE tests: Verify project creation
+- GET BY ID tests: Test retrieval by primary key
+- GET ALL tests: Test listing all projects with ordering
+- UPDATE tests: Test project field updates and None value handling
+- DELETE tests: Cover projects with no citations, unique citations, shared citations, and mixed scenarios
+- GET BY NAME tests: Test case-insensitive name search
+- GET ALL BY PROJECT tests: Test citation retrieval for projects
+- EXTRA tests: Out-of-layer scenarios for robustness verification
+
+Complex deletion scenarios tested:
+- Projects with no citations
+- Projects with unique citations (orphan cleanup)
+- Projects with shared citations (preservation)
+- Projects with mixed unique and shared citations
+- CASCADE integrity verification
+- Performance with multiple citations
+
+All tests use in-memory SQLite database for fast, isolated execution.
+"""
 import pytest
 import time
 from sqlalchemy import create_engine
@@ -471,3 +507,258 @@ def test_update_project_with_none_value_does_not_overwrite(db_session):
     updated = repo.update(project.id, name=None)
     assert updated.id == project.id
     assert updated.name == "Original Name"
+
+
+# ADDITIONAL COMPREHENSIVE TESTS
+
+def test_update_project_with_empty_string_name(db_session):
+    """Test updating project with empty string name."""
+    repo = ProjectRepository(db_session)
+    project = repo.create({"name": "Valid Name"})
+
+    # Update with empty string (should be applied as is - validation is at service layer)
+    updated = repo.update(project.id, name="")
+
+    assert updated is not None
+    assert updated.name == ""  # Repository layer doesn't validate, just stores
+
+
+def test_create_project_and_verify_timestamp(db_session):
+    """Test that project creation sets created_at timestamp."""
+    repo = ProjectRepository(db_session)
+    project = repo.create({"name": "Timestamp Test Project"})
+
+    assert project.created_at is not None
+    # Verify timestamp is recent (within last minute)
+    from datetime import datetime, UTC, timedelta, timezone
+    now = datetime.now(UTC)
+
+    # SQLite may return offset-naive datetime, so make it timezone-aware if needed
+    created_at = project.created_at
+    if created_at.tzinfo is None:
+        created_at = created_at.replace(tzinfo=timezone.utc)
+
+    assert created_at <= now
+    assert created_at >= now - timedelta(minutes=1)
+
+
+def test_get_all_projects_ordering_explicit(db_session):
+    """Explicitly test that get_all returns projects ordered by created_at descending."""
+    repo = ProjectRepository(db_session)
+
+    # Create multiple projects with small delays
+    import time
+    project1 = repo.create({"name": "First Project"})
+    time.sleep(0.002)
+    project2 = repo.create({"name": "Second Project"})
+    time.sleep(0.002)
+    project3 = repo.create({"name": "Third Project"})
+    time.sleep(0.002)
+    project4 = repo.create({"name": "Fourth Project"})
+
+    projects = repo.get_all()
+
+    assert len(projects) == 4
+    # Should be ordered newest first (desc)
+    assert projects[0].id == project4.id
+    assert projects[1].id == project3.id
+    assert projects[2].id == project2.id
+    assert projects[3].id == project1.id
+    assert projects[0].name == "Fourth Project"
+    assert projects[3].name == "First Project"
+
+
+def test_get_all_by_project_ordering_explicit(db_session):
+    """Explicitly test that get_all_by_project returns citations ordered by created_at descending."""
+    project_repo = ProjectRepository(db_session)
+    citation_repo = CitationRepository(db_session)
+
+    project = project_repo.create({"name": "Ordering Test Project"})
+
+    # Create multiple citations with delays
+    import time
+    citation1 = citation_repo.create(
+        project_id=project.id,
+        type="book",
+        title="First Book",
+        authors=["Author A"],
+        year=2020
+    )
+    time.sleep(0.002)
+    citation2 = citation_repo.create(
+        project_id=project.id,
+        type="article",
+        title="Second Article",
+        authors=["Author B"],
+        year=2021
+    )
+    time.sleep(0.002)
+    citation3 = citation_repo.create(
+        project_id=project.id,
+        type="website",
+        title="Third Website",
+        authors=["Author C"],
+        year=2022,
+        publisher="Web Publisher",
+        url="https://example.com"
+    )
+
+    citations = project_repo.get_all_by_project(project.id)
+
+    assert len(citations) == 3
+    # Should be ordered newest first (desc)
+    assert citations[0].id == citation3.id
+    assert citations[1].id == citation2.id
+    assert citations[2].id == citation1.id
+    assert citations[0].title == "Third Website"
+    assert citations[2].title == "First Book"
+
+
+def test_delete_project_empty_and_verify_complete_removal(db_session):
+    """Test that deleting empty project removes it completely from database."""
+    repo = ProjectRepository(db_session)
+
+    project = repo.create({"name": "To Be Deleted"})
+    project_id = project.id
+
+    result = repo.delete(project_id)
+
+    assert result is True
+
+    # Verify project is gone
+    deleted = repo.get_by_id(project_id)
+    assert deleted is None
+
+    # Verify it's not in get_all
+    all_projects = repo.get_all()
+    project_ids = [p.id for p in all_projects]
+    assert project_id not in project_ids
+
+
+def test_get_by_name_exact_match_returns_correct_project(db_session):
+    """Test that get_by_name returns the exact matching project."""
+    repo = ProjectRepository(db_session)
+
+    project1 = repo.create({"name": "AI Research"})
+    project2 = repo.create({"name": "AI Research Project"})
+    project3 = repo.create({"name": "Machine Learning"})
+
+    # Get by exact name
+    found = repo.get_by_name("AI Research")
+
+    assert found is not None
+    assert found.id == project1.id
+    assert found.name == "AI Research"
+
+
+def test_get_by_name_with_whitespace(db_session):
+    """Test get_by_name with leading/trailing whitespace."""
+    repo = ProjectRepository(db_session)
+
+    project = repo.create({"name": "Test Project"})
+
+    # Try finding with extra whitespace (won't match due to exact ilike)
+    found_leading = repo.get_by_name("  Test Project")
+    found_trailing = repo.get_by_name("Test Project  ")
+
+    # These won't match because ilike compares exact strings including whitespace
+    assert found_leading is None
+    assert found_trailing is None
+
+    # Exact match works
+    found_exact = repo.get_by_name("Test Project")
+    assert found_exact is not None
+    assert found_exact.id == project.id
+
+
+def test_create_multiple_projects_with_same_name(db_session):
+    """Test that repository allows creating multiple projects with same name."""
+    repo = ProjectRepository(db_session)
+
+    # Repository layer doesn't enforce uniqueness (that's service layer's job)
+    project1 = repo.create({"name": "Duplicate Name"})
+    project2 = repo.create({"name": "Duplicate Name"})
+
+    assert project1.id != project2.id
+    assert project1.name == project2.name == "Duplicate Name"
+
+    all_projects = repo.get_all()
+    duplicate_projects = [p for p in all_projects if p.name == "Duplicate Name"]
+    assert len(duplicate_projects) == 2
+
+
+def test_update_project_multiple_times(db_session):
+    """Test that updating the same project multiple times works correctly."""
+    repo = ProjectRepository(db_session)
+
+    project = repo.create({"name": "Original"})
+    project_id = project.id
+
+    # First update
+    updated1 = repo.update(project_id, name="First Update")
+    assert updated1.name == "First Update"
+    assert updated1.id == project_id
+
+    # Second update
+    updated2 = repo.update(project_id, name="Second Update")
+    assert updated2.name == "Second Update"
+    assert updated2.id == project_id
+
+    # Third update
+    updated3 = repo.update(project_id, name="Final Update")
+    assert updated3.name == "Final Update"
+    assert updated3.id == project_id
+
+    # Verify final state
+    final = repo.get_by_id(project_id)
+    assert final.name == "Final Update"
+
+
+def test_get_all_by_project_with_shared_citations(db_session):
+    """Test that get_all_by_project correctly retrieves citations shared between projects."""
+    project_repo = ProjectRepository(db_session)
+    citation_repo = CitationRepository(db_session)
+
+    project1 = project_repo.create({"name": "Project 1"})
+    project2 = project_repo.create({"name": "Project 2"})
+
+    # Create unique citation for project 1
+    unique_citation = citation_repo.create(
+        project_id=project1.id,
+        type="book",
+        title="Unique to Project 1",
+        authors=["Author A"],
+        year=2020
+    )
+
+    # Create shared citation
+    shared_citation = citation_repo.create(
+        project_id=project1.id,
+        type="article",
+        title="Shared Citation",
+        authors=["Author B"],
+        year=2021,
+        journal="Journal"
+    )
+
+    # Add shared citation to project 2
+    citation_repo.create(
+        project_id=project2.id,
+        type="article",
+        title="Shared Citation",
+        authors=["Author B"],
+        year=2021,
+        journal="Journal"
+    )
+
+    # Get citations for project 1
+    project1_citations = project_repo.get_all_by_project(project1.id)
+    assert len(project1_citations) == 2
+    citation_titles = [c.title for c in project1_citations]
+    assert "Unique to Project 1" in citation_titles
+    assert "Shared Citation" in citation_titles
+
+    # Get citations for project 2
+    project2_citations = project_repo.get_all_by_project(project2.id)
+    assert len(project2_citations) == 1
+    assert project2_citations[0].title == "Shared Citation"

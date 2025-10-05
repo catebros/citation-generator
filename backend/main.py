@@ -1,7 +1,21 @@
 # backend/main.py
+"""
+Main FastAPI application module for Citation Generator API.
+
+This module initializes and configures the FastAPI application with:
+- Database setup and table creation
+- CORS middleware for frontend connectivity
+- Router registration for projects and citations endpoints
+- Health check endpoints for monitoring
+- API documentation (Swagger UI and ReDoc)
+
+The application provides RESTful endpoints for managing bibliographic citations
+and projects, with support for APA and MLA citation formats.
+"""
 from fastapi import FastAPI, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from typing import Dict, Any
 import uvicorn
 from db.database import engine
 from models.base import Base
@@ -22,7 +36,7 @@ app = FastAPI(
 # Configure CORS middleware for frontend connectivity
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  
+    allow_origins=["*"],  # Configure appropriately for production
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE"],
     allow_headers=["*"],
@@ -32,10 +46,16 @@ app.add_middleware(
 app.include_router(project_router.router)
 app.include_router(citation_router.router)
 
-# Health check endpoints
+# ========== HEALTH CHECK ENDPOINTS ==========
+
 @app.get("/", tags=["Health"])
-def read_root():
-    """Main health check endpoint."""
+def read_root() -> Dict[str, Any]:
+    """
+    Main health check endpoint.
+
+    Returns:
+        Dict[str, Any]: API status information including message, status, and version
+    """
     return {
         "message": "Citation Generator API is running",
         "status": "healthy",
@@ -43,8 +63,17 @@ def read_root():
     }
 
 @app.get("/health", tags=["Health"])
-def health_check():
-    """Detailed health check endpoint."""
+def health_check() -> Dict[str, Any]:
+    """
+    Detailed health check endpoint.
+
+    Provides comprehensive system health information including database
+    connectivity, supported formats, and available citation types.
+
+    Returns:
+        Dict[str, Any]: Detailed health status with database connection info,
+                       supported formats, and citation types
+    """
     return {
         "status": "healthy",
         "database": "connected",
@@ -52,6 +81,8 @@ def health_check():
         "supported_formats": ["APA", "MLA"],
         "citation_types": ["article", "book", "website", "report"]
     }
+
+# ========== APPLICATION ENTRY POINT ==========
 
 if __name__ == "__main__":
     uvicorn.run(

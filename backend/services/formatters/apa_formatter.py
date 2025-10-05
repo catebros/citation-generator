@@ -1,30 +1,98 @@
 # backend/services/formatters/apa_formatter.py
 from .base_citation_formatter import BaseCitationFormatter
-from typing import TYPE_CHECKING
-
-if TYPE_CHECKING:
-    from models.citation import Citation
+from typing import TYPE_CHECKING, List
+from models.citation import Citation
 
 class APAFormatter(BaseCitationFormatter):
-    """APA citation formatter implementation."""
-    
+    """
+    APA (American Psychological Association) citation formatter implementation.
+
+    This class implements citation formatting according to APA 7th edition guidelines.
+    It handles all citation types (book, article, website, report) with proper
+    formatting including sentence case titles, author name formatting with initials,
+    and specific punctuation and ordering rules defined by APA style.
+
+    Attributes:
+        _citation (Citation): The citation object to be formatted (inherited from base class)
+    """
+
     def __init__(self, citation: 'Citation'):
-        """Initialize APA formatter with citation data."""
+        """
+        Initialize APA formatter with citation data.
+
+        Args:
+            citation (Citation): The citation object containing all citation fields
+        """
         super().__init__(citation)
-    
+
     def _to_sentence_case(self, title: str) -> str:
-        """Convert title to APA Sentence Case format (7th edition).
-        
-        Rules:
-        - Only the first word of the title is capitalized
-        - Only the first word after a colon is capitalized
-        - Proper nouns and acronyms remain capitalized
+        """
+        Convert title to APA Sentence Case format (7th edition).
+
+        APA sentence case capitalizes only:
+        - The first word of the title
+        - The first word after a colon (subtitle)
+        - Proper nouns and known acronyms
+
+        Args:
+            title (str): Original title text
+
+        Returns:
+            str: Title converted to sentence case
+
+        Examples:
+            "The Psychology of Learning" -> "The psychology of learning"
+            "AI and ML: Modern Approaches" -> "AI and ML: Modern approaches"
+            "Understanding HTTP Protocols" -> "Understanding HTTP protocols"
+
+        Note:
+            - Preserves known acronyms (API, AI, ML, HTML, etc.)
+            - Handles colons for subtitle capitalization
+            - Acronyms of 2-5 uppercase letters are preserved
         """
         if not title:
             return ""
         
         # Known acronyms and abbreviations that should stay uppercase
-        acronyms = {'API', 'AI', 'ML', 'IT', 'UI', 'UX', 'CEO', 'CTO', 'HTML', 'CSS', 'JS', 'SQL', 'XML', 'HTTP', 'HTTPS', 'URL', 'JSON', 'PDF'}
+        acronyms = {
+            # Technology & Computing
+            'AI', 'API', 'AR', 'AWS', 'CDN', 'CLI', 'CPU', 'CSS', 'CSV', 'DNA', 'DOS', 'DVD',
+            'FAQ', 'FTP', 'GIF', 'GPS', 'GPU', 'GUI', 'HTML', 'HTTP', 'HTTPS', 'IDE', 'IoT',
+            'IP', 'IT', 'JPEG', 'JPG', 'JS', 'JSON', 'LAN', 'LED', 'ML', 'NLP', 'OS', 'PC',
+            'PDF', 'PHP', 'PNG', 'RAM', 'REST', 'RGB', 'ROM', 'SaaS', 'SDK', 'SEO', 'SQL',
+            'SSH', 'SSL', 'TCP', 'TLS', 'UI', 'URL', 'USB', 'UX', 'VPN', 'VR', 'WAN', 'WiFi',
+            'WWW', 'XML', 'YAML', 'ZIP',
+
+            # Organizations & Institutions
+            'CIA', 'FBI', 'FDA', 'NATO', 'NASA', 'NOAA', 'UNESCO', 'UNICEF', 'UN', 'WHO',
+            'EU', 'EPA', 'FCC', 'CDC', 'MIT', 'UCLA', 'CUNY', 'NYU', 'USC', 'IEEE',
+
+            # Business & Finance
+            'CEO', 'CFO', 'CTO', 'COO', 'CPA', 'LLC', 'IPO', 'GDP', 'SEC', 'IRS', 'NYSE',
+            'ATM', 'ETF', 'ROI', 'KPI', 'B2B', 'B2C', 'HR', 'PR', 'RFP', 'SLA',
+
+            # Science & Medicine
+            'DNA', 'RNA', 'HIV', 'AIDS', 'MRI', 'CT', 'EEG', 'ECG', 'PCR', 'STEM',
+            'ADHD', 'OCD', 'PTSD', 'BMI', 'FDA', 'CDC', 'WHO',
+
+            # Education & Testing
+            'ACT', 'SAT', 'GPA', 'GRE', 'GMAT', 'TOEFL', 'IELTS', 'IQ', 'EQ', 'AP', 'IB',
+            'PhD', 'MBA', 'BA', 'BS', 'MA', 'MS', 'MD', 'JD', 'EdD', 'DDS',
+
+            # Media & Communication
+            'TV', 'DVD', 'CD', 'FM', 'AM', 'PM', 'BBC', 'CNN', 'ESPN', 'HBO', 'NBC',
+            'CBS', 'ABC', 'NPR', 'PBS', 'RSS', 'SMS', 'MMS', 'DM',
+
+            # Geography & Countries
+            'USA', 'UK', 'UAE', 'EU', 'USSR', 'NYC', 'LA', 'DC', 'SF',
+
+            # Military & Defense
+            'FBI', 'CIA', 'NSA', 'DOD', 'RAF', 'USAF', 'NATO', 'ICBM',
+
+            # Miscellaneous
+            'FAQ', 'DIY', 'ASAP', 'FYI', 'RSVP', 'TBD', 'TBA', 'ETA', 'OK', 'AWOL',
+            'PS', 'vs', 'VS', 'aka', 'AKA', 'etc', 'ETC', 'ie', 'IE', 'eg', 'EG'
+        }
         
         # Split by colon to handle subtitles
         parts = title.split(':')
@@ -73,7 +141,19 @@ class APAFormatter(BaseCitationFormatter):
         return ': '.join(processed_parts)
     
     def format_citation(self) -> str:
-        """Generate APA format citation."""
+        """
+        Generate APA format citation based on citation type.
+
+        Routes the citation to the appropriate type-specific formatter method
+        (book, article, website, or report).
+
+        Returns:
+            str: Complete formatted APA citation with HTML markup
+
+        Note:
+            - Returns error message for unsupported citation types
+            - Formatted citations include HTML <i> tags for italics
+        """
         authors = self._get_authors_list()
         formatted_authors = self._format_authors(authors)
         
@@ -88,13 +168,26 @@ class APAFormatter(BaseCitationFormatter):
         else:
             return f"Unsupported citation type: {self._citation.type}"
     
-    def _format_authors(self, authors: list) -> str:
-        """Format authors for APA style with proper initials.
-        APA 7 rules:
-        - 1 author: Author, A.
-        - 2 authors: Author, A., & Author, B.
-        - 3-20 authors: Author, A., Author, B., & Author, C.
-        - 21+ authors: Author, A., Author, B., ..., & Author, Z.
+    def _format_authors(self, authors: List[str]) -> str:
+        """
+        Format authors list according to APA 7th edition rules.
+
+        APA 7 author formatting rules:
+        - 1 author: Last, F.
+        - 2 authors: Last, F., & Last, F.
+        - 3-20 authors: Last, F., Last, F., & Last, F.
+        - 21+ authors: First 19 authors, ..., & Last author
+
+        Args:
+            authors (list): List of author names in "First Last" format
+
+        Returns:
+            str: Formatted authors string with proper punctuation and conjunctions
+
+        Note:
+            - Uses ampersand (&) before last author
+            - Author names are normalized to "Last, F." format with initials
+            - For 21+ authors, includes first 19, ellipsis, then last author
         """
         if not authors:
             return ""
@@ -116,8 +209,27 @@ class APAFormatter(BaseCitationFormatter):
             return f"{first_19}, ..., & {last_author}"
     
     def _normalize_author_name(self, author: str) -> str:
-        """Convert author name to APA format with initials.
-        Examples: 'John Smith' -> 'Smith, J.'
+        """
+        Convert author name to APA format with initials.
+
+        Transforms author names from "First Last" format to APA style "Last, F." format
+        where first/middle names are converted to initials.
+
+        Args:
+            author (str): Author name in "First Last" or "First Middle Last" format
+
+        Returns:
+            str: Author name in APA format "Last, F. M." with initials
+
+        Examples:
+            "John Smith" -> "Smith, J."
+            "John Paul Jones" -> "Jones, J. P."
+            "Smith" -> "Smith"
+
+        Note:
+            - All first and middle names become initials with periods
+            - Last name always comes first in APA style
+            - Single-name authors are returned as-is
         """
         author = author.strip()
         if not author:
@@ -135,7 +247,23 @@ class APAFormatter(BaseCitationFormatter):
         return author
     
     def _format_book(self, authors: str) -> str:
-        """Generate APA book citation."""
+        """
+        Generate APA format book citation.
+
+        APA book format: Authors. (Year). Title (edition). Publisher.
+
+        Args:
+            authors (str): Pre-formatted authors string
+
+        Returns:
+            str: Complete APA book citation
+
+        Note:
+            - Title is italicized and in sentence case
+            - Edition is shown only if not first edition
+            - Year defaults to "(n.d.)" if not provided
+            - Final period added automatically
+        """
         citation_parts = []
         
         if authors:
@@ -172,7 +300,24 @@ class APAFormatter(BaseCitationFormatter):
         return ""
     
     def _format_article(self, authors: str) -> str:
-        """Generate APA article citation."""
+        """
+        Generate APA format article citation.
+
+        APA article format: Authors. (Year). Article title. Journal Name, volume(issue), pages. DOI
+
+        Args:
+            authors (str): Pre-formatted authors string
+
+        Returns:
+            str: Complete APA article citation
+
+        Note:
+            - Article title is NOT italicized, in sentence case
+            - Journal name and volume are italicized
+            - Issue number in parentheses, not italicized
+            - DOI URL is added without "Retrieved from" prefix
+            - No final period if DOI is present
+        """
         citation_parts = []
         
         if authors:
@@ -225,7 +370,24 @@ class APAFormatter(BaseCitationFormatter):
         return ""
     
     def _format_website(self, authors: str) -> str:
-        """Generate APA website citation."""
+        """
+        Generate APA format website citation.
+
+        APA website format: Authors. (Year). Page title. Website Name. URL
+
+        Args:
+            authors (str): Pre-formatted authors string
+
+        Returns:
+            str: Complete APA website citation
+
+        Note:
+            - Page title is in sentence case, not italicized
+            - Website name (publisher) is italicized
+            - Year defaults to "(n.d.)" if not provided
+            - URL is added directly without "Retrieved from"
+            - No final period after URL
+        """
         citation_parts = []
         
         if authors:
@@ -262,7 +424,24 @@ class APAFormatter(BaseCitationFormatter):
         return ""
     
     def _format_report(self, authors: str) -> str:
-        """Generate APA report citation."""
+        """
+        Generate APA format report citation.
+
+        APA report format: Authors. (Year). Title [Report]. Organization. URL
+
+        Args:
+            authors (str): Pre-formatted authors string
+
+        Returns:
+            str: Complete APA report citation
+
+        Note:
+            - Title is italicized with [Report] descriptor
+            - Organization (publisher) is not italicized
+            - Year defaults to "(n.d.)" if not provided
+            - URL is added directly without "Retrieved from"
+            - No final period after URL
+        """
         citation_parts = []
         
         if authors:

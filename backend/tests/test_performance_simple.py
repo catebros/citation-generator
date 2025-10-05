@@ -22,8 +22,6 @@ def test_stress_create_100_citations():
     print("\nStarting stress test: 100 citations")
     
     # Test client - will use test database automatically
-    from fastapi.testclient import TestClient
-    from main import app
     client = TestClient(app)
     
     # Create project for citations
@@ -185,8 +183,6 @@ def test_stress_concurrent_bibliography():
     print("\nStarting stress test: bibliography with 30 citations")
 
     # Test client - will use test database automatically
-    from fastapi.testclient import TestClient
-    from main import app
     client = TestClient(app)
     
     # Create project

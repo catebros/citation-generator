@@ -1,12 +1,27 @@
 # backend/tests/test_citation_validator.py
+"""
+Test suite for citation_validator module.
+
+This module contains comprehensive tests for citation data validation including:
+- Citation type validation (book, article, website, report)
+- Field requirement validation for create/update modes
+- Type change validation with additional field requirements
+- Field format validation (authors, year, title, URL, DOI, pages, dates)
+- Character validation (valid characters, accents, special characters)
+- Length validation for all string fields with max length limits
+- Edge cases (None values, empty strings, whitespace, boundary conditions)
+
+The validation logic ensures data integrity before citations are stored in the database.
+"""
 import pytest
 from fastapi import HTTPException
 from services.validators.citation_validator import validate_citation_data
 
-# Test cases for validate_citation_data general functionality
+# ========== GENERAL FUNCTIONALITY TESTS ==========
 
 def test_validate_citation_data_supported_type_passes():
     """Test that supported citation types pass validation."""
+    # Valid book citation with all required fields
     valid_data = {
         "type": "book",
         "title": "Test Book",
@@ -16,7 +31,7 @@ def test_validate_citation_data_supported_type_passes():
         "place": "Test City",
         "edition": 1
     }
-    
+
     # Should not raise exception
     result = validate_citation_data(valid_data, mode="create")
     assert result is True
@@ -137,7 +152,7 @@ def test_validate_citation_data_type_change_missing_required_raises_exception():
     assert exc_info.value.status_code == 400
     assert "Type change from book to article requires additional fields:" in exc_info.value.detail
 
-# Test cases for field format validations
+# ========== FIELD FORMAT VALIDATION TESTS ==========
 
 def test_validate_authors_valid_list_passes():
     """Test that valid authors list passes validation."""
@@ -748,7 +763,7 @@ def test_validate_access_date_wrong_format_raises_exception():
     assert exc_info.value.status_code == 400
     assert "Access Date must be in YYYY-MM-DD format" in exc_info.value.detail
 
-# Test cases for new character validation in authors and place fields
+# ========== CHARACTER VALIDATION TESTS ==========
 
 def test_validate_authors_valid_names_with_accents_passes():
     """Test that author names with accents and valid characters pass validation."""
@@ -975,7 +990,7 @@ def test_validate_place_multiple_invalid_characters_raises_exception():
     assert exc_info.value.status_code == 400
     assert "Place names can only contain letters, spaces, hyphens, apostrophes, periods, and commas" in exc_info.value.detail
 
-# LENGTH VALIDATION TESTS
+# ========== LENGTH VALIDATION TESTS ==========
 
 def test_validate_title_too_long_raises_exception():
     """Test that title exceeding maximum length raises exception."""

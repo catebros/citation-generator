@@ -1,4 +1,17 @@
-# backend/routers/citations.py
+# backend/routers/citation_router.py
+"""
+Citation management API router.
+
+This module provides REST API endpoints for citation CRUD operations:
+- Create new citations within projects
+- Retrieve citations by ID
+- Update existing citations
+- Delete citations from projects
+
+All endpoints handle JSON serialization of citation data including
+author lists and publication details. Dependency injection provides
+service layer access with automatic database session management.
+"""
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from typing import List, Dict, Any
 import json
@@ -7,6 +20,8 @@ from services.citation_service import CitationService
 from services.project_service import ProjectService
 
 router = APIRouter(tags=["Citations"])
+
+# ========== CITATION CRUD ENDPOINTS ==========
 
 @router.post("/projects/{project_id}/citations", status_code=status.HTTP_201_CREATED)
 def create_citation(project_id: int, citation_data: Dict[str, Any], citation_service: CitationService = Depends(get_citation_service)) -> Dict[str, Any]:

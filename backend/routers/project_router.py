@@ -1,4 +1,18 @@
-# backend/routers/projects.py
+# backend/routers/project_router.py
+"""
+Project management API router.
+
+This module provides REST API endpoints for project CRUD operations:
+- Create new projects
+- Retrieve project(s) by ID or all projects
+- Update existing projects
+- Delete projects
+- Get all citations for a project
+- Generate formatted bibliographies for projects
+
+All endpoints use dependency injection for service layer access
+and include comprehensive error handling.
+"""
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from typing import List, Dict, Any
 from dependencies import get_project_service
@@ -6,6 +20,8 @@ from services.project_service import ProjectService
 import json
 
 router = APIRouter(tags=["Projects"])
+
+# ========== PROJECT CRUD ENDPOINTS ==========
 
 @router.post("/projects", status_code=status.HTTP_201_CREATED)
 def create_project(project_data: Dict[str, Any], project_service: ProjectService = Depends(get_project_service)) -> Dict[str, Any]:
@@ -116,17 +132,20 @@ def delete_project(project_id: int, project_service: ProjectService = Depends(ge
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
     
+# ========== PROJECT BIBLIOGRAPHY ENDPOINTS ==========
+
 @router.get("/projects/{project_id}/bibliography", status_code=status.HTTP_200_OK)
 def generate_bibliography(project_id: int, format_type: str = Query("apa", description="Format type (apa, mla)"), project_service: ProjectService = Depends(get_project_service)) -> Dict[str, Any]:
     """
     Generate a complete bibliography for a project.
-    
+
     Args:
-        project_id: ID of the project
-        format_type: Format type (apa, mla)
-        
+        project_id (int): ID of the project
+        format_type (str): Format type (apa, mla), defaults to "apa"
+        project_service (ProjectService): Injected project service instance
+
     Returns:
-        Complete formatted bibliography with all project citations
+        Dict[str, Any]: Complete formatted bibliography with all project citations
     """
     try:
         bibliography = project_service.generate_bibliography_by_project(project_id, format_type)
@@ -134,8 +153,9 @@ def generate_bibliography(project_id: int, format_type: str = Query("apa", descr
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")    
-    
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+
+# ========== PROJECT CITATIONS ENDPOINTS ==========
 
 @router.get("/projects/{project_id}/citations", status_code=status.HTTP_200_OK)
 def get_project_citations(project_id: int, project_service: ProjectService = Depends(get_project_service)) -> List[Dict[str, Any]]:

@@ -1,4 +1,24 @@
 # backend/repositories/citation_repo.py
+"""
+Citation repository for database operations.
+
+This module provides the CitationRepository class which handles all database
+interactions for Citation entities. It implements the repository pattern to
+separate data access logic from business logic.
+
+Key features:
+- CRUD operations for citations
+- Duplicate detection and prevention (case-insensitive)
+- Smart update logic that handles shared citations across multiple projects
+- Automatic orphan citation cleanup
+- Many-to-many relationship management with projects
+
+The repository ensures data integrity by:
+- Reusing existing identical citations to avoid duplication
+- Creating new citations when updating shared ones (copy-on-write)
+- Filtering citation fields by type to enforce schema consistency
+- Managing ProjectCitation associations automatically
+"""
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from models.citation import Citation
@@ -6,32 +26,47 @@ from models.project_citation import ProjectCitation
 from config.citation_config import CitationFieldsConfig
 import json
 from sqlalchemy import inspect
+from typing import List, Dict, Any
 
-def _get_citation_valid_fields():
-    """Get valid fields from Project model, excluding id and created_at."""
+
+def _get_citation_valid_fields() -> List[str]:
+    """
+    Get valid fields from Citation model, excluding id and created_at.
+
+    Returns:
+        List[str]: List of valid citation field names that can be set/updated
+    """
     mapper = inspect(Citation)
     excluded_fields = {'id', 'created_at'}
     return [column.key for column in mapper.columns if column.key not in excluded_fields]
+
 
 CITATION_VALID_FIELDS = _get_citation_valid_fields()
 
 class CitationRepository:
     """
     Repository class for managing citation data operations.
-    
+
     This class handles all database interactions for citations and their associations
     with projects. It provides CRUD operations while ensuring data integrity,
     avoiding duplicates, and properly managing many-to-many relationships between
     citations and projects.
-    
+
+    The repository implements intelligent citation management:
+    - Duplicate detection: Prevents identical citations from being created multiple times
+    - Copy-on-write updates: When updating a shared citation, creates a new instance
+      for the current project to avoid affecting other projects
+    - Orphan cleanup: Automatically removes citations that no longer belong to any project
+    - Case-insensitive search: find_duplicate uses case-insensitive comparison for strings
+
     Attributes:
-        db (Session): SQLAlchemy database session for executing queries
+        _db (Session): SQLAlchemy database session for executing queries
     """
-    
-    def __init__(self, db: Session):
+
+    def __init__(self, db: Session) -> None:
         """
         Initialize the citation repository with a database session.
-        
+
         Args:
             db (Session): SQLAlchemy database session for database operations
         """
@@ -122,7 +157,7 @@ class CitationRepository:
 
         return citation
     
-    def merge_citation_data(self, current_citation: Citation, update_data: dict) -> dict:
+    def merge_citation_data(self, current_citation: Citation, update_data: Dict[str, Any]) -> Dict[str, Any]:
         """
         Helper function to merge current citation data with update data and filter by type.
         
@@ -176,7 +211,7 @@ class CitationRepository:
         
         return final_data
     
-    def find_duplicate_citation_in_project(self, project_id: int, data: dict) -> Citation | None:
+    def find_duplicate_citation_in_project(self, project_id: int, data: Dict[str, Any]) -> Citation | None:
         """
         Find if an identical citation already exists in a specific project.
         Case-insensitive comparison for string fields.

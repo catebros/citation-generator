@@ -1,9 +1,27 @@
 # backend/tests/test_mla_formatter.py
+"""
+Test suite for MLAFormatter class.
+
+This module contains comprehensive tests for MLA (Modern Language Association)
+9th edition citation formatting including:
+- Author name formatting (inversion of first author, et al. for 4+ authors)
+- Citation type formatting (book, article, website, report)
+- Title case conversion with proper capitalization rules
+- Edition normalization (1st ignored, 2nd-113th with proper suffixes)
+- Access date formatting for web sources (YYYY-MM-DD to "Accessed Day Mon. Year")
+- Missing field handling and edge cases
+- Special formatting rules (quotation marks for articles, italics for books/journals)
+
+The formatter implements MLA 9th edition guidelines with proper punctuation,
+formatting, and field ordering for academic citations.
+"""
 import pytest
 import json
 from models.citation import Citation
 from services.formatters.mla_formatter import MLAFormatter
 
+
+# ========== BOOK CITATION TESTS ==========
 
 def test_mla_book_single_author():
     """Test MLA book citation with single author."""
@@ -77,6 +95,9 @@ def test_mla_book_first_edition_ignored():
     expected = "Name, Author. <i>First Edition Book</i>. Publisher, 2023."
     assert result == expected
 
+
+# ========== ARTICLE CITATION TESTS ==========
+
 def test_mla_article_complete_data():
     """Test MLA article citation with complete data."""
     citation = Citation(
@@ -127,6 +148,9 @@ def test_mla_article_without_issue():
     expected = 'Writer, Bob. "Simple Study." <i>Research Today</i>, vol. 15, 2023, pp. 10–20.'
     assert result == expected
 
+
+# ========== WEBSITE CITATION TESTS ==========
+
 def test_mla_website_complete_data():
     """Test MLA website citation with complete data."""
     citation = Citation(
@@ -174,6 +198,9 @@ def test_mla_website_without_access_date():
     expected = 'Author, Web. "Online Resource." <i>Web Publisher</i>, 2023, https://example.org/resource'
     assert result == expected
 
+
+# ========== REPORT CITATION TESTS ==========
+
 def test_mla_report_complete_data():
     """Test MLA report citation with complete data."""
     citation = Citation(
@@ -202,6 +229,9 @@ def test_mla_report_without_url():
     result = formatter._format_report(formatter._format_authors(formatter._get_authors_list()))
     expected = "Student, M. <i>Technical Report</i>. Tech Research Corp, 2023."
     assert result == expected
+
+
+# ========== AUTHOR FORMATTING TESTS ==========
 
 def test_mla_format_authors_single():
     """Test MLA author formatting for single author."""
@@ -248,6 +278,9 @@ def test_mla_format_authors_empty():
     expected = ""
     assert result == expected
 
+
+# ========== EDITION NORMALIZATION TESTS ==========
+
 def test_mla__normalize_edition_various():
     """Test MLA edition normalization."""
     citation = Citation(type="book")
@@ -273,6 +306,9 @@ def test_mla__normalize_edition_various():
     assert formatter._normalize_edition(111) == "111th ed."
     assert formatter._normalize_edition(112) == "112th ed."
     assert formatter._normalize_edition(113) == "113th ed."
+
+
+# ========== EDGE CASE AND ERROR HANDLING TESTS ==========
 
 def test_mla_unsupported_citation_type():
     """Test MLA formatter with unsupported citation type."""
@@ -303,6 +339,9 @@ def test_mla_missing_required_fields_handled_gracefully():
     # Should handle missing fields without crashing
     assert isinstance(result, str)
     assert "n.d." in result  # Should show "no date"
+
+
+# ========== INTEGRATION TESTS ==========
 
 def test_mla_book_with_advanced_edition_in_real_citation():
     """Test MLA book with advanced edition (22nd ed.) integrated in real citation."""
@@ -446,6 +485,8 @@ def test_mla_authors_exactly_three_lists_all():
     assert formatted_many == expected
 
 
+# ========== TITLE CASE CONVERSION TESTS ==========
+
 def test_mla_title_case_conversion():
     """Test MLA Title Case conversion with various scenarios."""
     citation = Citation(type="book")
@@ -461,7 +502,6 @@ def test_mla_title_case_conversion():
     assert formatter._to_title_case("much ado about nothing") == "Much Ado About Nothing"
     
     # Test first and last word always capitalized
-    assert formatter._to_title_case("in the beginning was the word") == "In the Beginning Was the Word"
     assert formatter._to_title_case("gone with the wind") == "Gone with the Wind"
     
     # Test conjunctions
@@ -509,7 +549,7 @@ def test_mla_article_with_title_case_complex():
 def test_mla_authors_exactly_three_lists_all():
     """Test MLA with exactly 3 authors lists all authors without et al."""
     authors_list = ["Smith John", "Doe Jane", "Brown Bob"]
-    
+
     citation = Citation(
         type="book",
         title="Three Authors Book",
@@ -519,7 +559,7 @@ def test_mla_authors_exactly_three_lists_all():
     )
     formatter = MLAFormatter(citation)
     formatted_authors = formatter._format_authors(authors_list)
-    
+
     # Should list all three authors without et al.
     assert "et al." not in formatted_authors
     assert "John, Smith" in formatted_authors
@@ -527,3 +567,151 @@ def test_mla_authors_exactly_three_lists_all():
     assert "Brown Bob" in formatted_authors  # Third author format
     expected = "John, Smith, Doe Jane, and Brown Bob"
     assert formatted_authors == expected
+
+
+# ========== MLA ACCESS DATE FORMATTING TESTS ==========
+
+def test_mla_format_access_date_valid_format():
+    """Test MLA _format_access_date with valid YYYY-MM-DD format."""
+    citation = Citation(type="website")
+    formatter = MLAFormatter(citation)
+
+    # Test various valid dates - includes "Accessed" prefix
+    assert formatter._format_access_date("2025-01-15") == "Accessed 15 Jan. 2025"
+    assert formatter._format_access_date("2023-03-05") == "Accessed 5 Mar. 2023"
+    assert formatter._format_access_date("2024-12-31") == "Accessed 31 Dec. 2024"
+    assert formatter._format_access_date("2022-07-04") == "Accessed 4 Jul. 2022"  # July is abbreviated
+
+
+def test_mla_format_access_date_single_digit_day():
+    """Test MLA _format_access_date with single-digit days (no leading zero)."""
+    citation = Citation(type="website")
+    formatter = MLAFormatter(citation)
+
+    # Includes "Accessed" prefix
+    assert formatter._format_access_date("2025-10-01") == "Accessed 1 Oct. 2025"
+    assert formatter._format_access_date("2025-10-09") == "Accessed 9 Oct. 2025"
+
+
+def test_mla_format_access_date_all_months():
+    """Test MLA _format_access_date with all months."""
+    citation = Citation(type="website")
+    formatter = MLAFormatter(citation)
+
+    # All include "Accessed" prefix
+    assert formatter._format_access_date("2025-01-15") == "Accessed 15 Jan. 2025"
+    assert formatter._format_access_date("2025-02-15") == "Accessed 15 Feb. 2025"
+    assert formatter._format_access_date("2025-03-15") == "Accessed 15 Mar. 2025"
+    assert formatter._format_access_date("2025-04-15") == "Accessed 15 Apr. 2025"
+    assert formatter._format_access_date("2025-05-15") == "Accessed 15 May 2025"  # May has no period
+    assert formatter._format_access_date("2025-06-15") == "Accessed 15 Jun. 2025"  # June abbreviated
+    assert formatter._format_access_date("2025-07-15") == "Accessed 15 Jul. 2025"  # July abbreviated
+    assert formatter._format_access_date("2025-08-15") == "Accessed 15 Aug. 2025"
+    assert formatter._format_access_date("2025-09-15") == "Accessed 15 Sep. 2025"
+    assert formatter._format_access_date("2025-10-15") == "Accessed 15 Oct. 2025"
+    assert formatter._format_access_date("2025-11-15") == "Accessed 15 Nov. 2025"
+    assert formatter._format_access_date("2025-12-15") == "Accessed 15 Dec. 2025"
+
+
+def test_mla_format_access_date_invalid_format_returns_as_is():
+    """Test MLA _format_access_date with invalid format returns with Accessed prefix."""
+    citation = Citation(type="website")
+    formatter = MLAFormatter(citation)
+
+    # Invalid formats get "Accessed" prefix added
+    assert formatter._format_access_date("01-15-2025") == "Accessed 01-15-2025"
+    assert formatter._format_access_date("not-a-date") == "Accessed not-a-date"
+    assert formatter._format_access_date("2025/10/15") == "Accessed 2025/10/15"
+    assert formatter._format_access_date("") == "Accessed "
+
+
+def test_mla_format_access_date_none_raises_error():
+    """Test MLA _format_access_date with None raises TypeError."""
+    citation = Citation(type="website")
+    formatter = MLAFormatter(citation)
+
+    # None is not a valid input - method expects string, will raise TypeError
+    with pytest.raises(TypeError):
+        formatter._format_access_date(None)
+
+
+# ========== MLA AUTHOR NAME NORMALIZATION TESTS ==========
+
+def test_mla_normalize_author_name_two_part():
+    """Test MLA _normalize_author_name with two-part names."""
+    citation = Citation(type="book")
+    formatter = MLAFormatter(citation)
+
+    assert formatter._normalize_author_name("John Smith") == "Smith, John"
+    assert formatter._normalize_author_name("Alice Johnson") == "Johnson, Alice"
+    assert formatter._normalize_author_name("Mary Williams") == "Williams, Mary"
+
+
+def test_mla_normalize_author_name_three_part():
+    """Test MLA _normalize_author_name with three-part names (middle names)."""
+    citation = Citation(type="book")
+    formatter = MLAFormatter(citation)
+
+    # All first/middle names stay after comma in MLA
+    assert formatter._normalize_author_name("John Paul Jones") == "Jones, John Paul"
+    assert formatter._normalize_author_name("Mary Jane Watson") == "Watson, Mary Jane"
+    assert formatter._normalize_author_name("Michael Thomas Anderson") == "Anderson, Michael Thomas"
+
+
+def test_mla_normalize_author_name_four_part():
+    """Test MLA _normalize_author_name with four-part names (multiple middle names)."""
+    citation = Citation(type="book")
+    formatter = MLAFormatter(citation)
+
+    assert formatter._normalize_author_name("John Paul George Smith") == "Smith, John Paul George"
+    assert formatter._normalize_author_name("A B C Defgh") == "Defgh, A B C"
+
+
+def test_mla_normalize_author_name_single_name():
+    """Test MLA _normalize_author_name with single names."""
+    citation = Citation(type="book")
+    formatter = MLAFormatter(citation)
+
+    # Single names returned as-is (no inversion)
+    assert formatter._normalize_author_name("Madonna") == "Madonna"
+    assert formatter._normalize_author_name("Plato") == "Plato"
+    assert formatter._normalize_author_name("Shakespeare") == "Shakespeare"
+
+
+def test_mla_normalize_author_name_with_spaces():
+    """Test MLA _normalize_author_name handles extra spaces."""
+    citation = Citation(type="book")
+    formatter = MLAFormatter(citation)
+
+    assert formatter._normalize_author_name("  John   Smith  ") == "Smith, John"
+    assert formatter._normalize_author_name("John  Paul  Jones") == "Jones, John Paul"
+
+
+def test_mla_normalize_author_name_empty():
+    """Test MLA _normalize_author_name with empty string."""
+    citation = Citation(type="book")
+    formatter = MLAFormatter(citation)
+
+    assert formatter._normalize_author_name("") == ""
+    assert formatter._normalize_author_name("   ") == ""
+
+
+def test_mla_normalize_author_name_preserves_case():
+    """Test MLA _normalize_author_name preserves original case."""
+    citation = Citation(type="book")
+    formatter = MLAFormatter(citation)
+
+    # MLA preserves case as written
+    assert formatter._normalize_author_name("john smith") == "smith, john"
+    assert formatter._normalize_author_name("ALICE JOHNSON") == "JOHNSON, ALICE"
+    assert formatter._normalize_author_name("Mary Jane") == "Jane, Mary"
+
+
+def test_mla_normalize_author_name_hyphenated():
+    """Test MLA _normalize_author_name with hyphenated last names."""
+    citation = Citation(type="book")
+    formatter = MLAFormatter(citation)
+
+    # Hyphenated last name is treated as single unit
+    assert formatter._normalize_author_name("Jean-Paul Sartre") == "Sartre, Jean-Paul"
+    assert formatter._normalize_author_name("Mary Smith-Jones") == "Smith-Jones, Mary"

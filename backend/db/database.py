@@ -31,12 +31,13 @@ class DatabaseEngine:
             cls._instance = super(DatabaseEngine, cls).__new__(cls)
         return cls._instance
     
-    def get_engine(self):
+    def get_engine(self) -> create_engine:
         """
         Get the SQLAlchemy engine, creating it if it doesn't exist.
-        
+
         Returns:
-            Engine: SQLAlchemy database engine configured for SQLite
+            Engine: SQLAlchemy database engine configured for SQLite with
+                   check_same_thread disabled for concurrent access
         """
         if self._engine is None:
             self._engine = create_engine(
@@ -46,10 +47,13 @@ class DatabaseEngine:
         return self._engine
     
     @classmethod
-    def reset_instance(cls):
+    def reset_instance(cls) -> None:
         """
         Reset the singleton instance (useful for testing).
-        
+
+        Disposes of the existing engine (if any) and resets the singleton state.
+        This ensures proper cleanup and prevents resource leaks during testing.
+
         Note:
             This method should only be used in test environments
             to ensure clean state between tests.
@@ -65,8 +69,13 @@ class DatabaseEngine:
 
 
 # Get the singleton engine instance
-def get_singleton_engine():
-    """Get the current singleton engine instance."""
+def get_singleton_engine() -> create_engine:
+    """
+    Get the current singleton engine instance.
+
+    Returns:
+        Engine: The singleton SQLAlchemy database engine
+    """
     return DatabaseEngine().get_engine()
 
 # Get the singleton engine
@@ -76,8 +85,13 @@ engine = get_singleton_engine()
 # autocommit=False: Manual transaction control (explicit commits required)
 # autoflush=False: Manual flushing of changes to database
 # bind=engine: Associates sessions with the singleton engine
-def get_session_factory():
-    """Get a session factory bound to the current singleton engine."""
+def get_session_factory() -> sessionmaker:
+    """
+    Get a session factory bound to the current singleton engine.
+
+    Returns:
+        sessionmaker: A configured session factory for creating database sessions
+    """
     return sessionmaker(autocommit=False, autoflush=False, bind=get_singleton_engine())
 
 LocalSession = get_session_factory()

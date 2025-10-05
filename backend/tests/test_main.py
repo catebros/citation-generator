@@ -1,4 +1,17 @@
-# tests/test_main.py
+# backend/tests/test_main.py
+"""
+Test suite for main FastAPI application endpoints.
+
+This module tests the core application endpoints and functionality:
+- Root endpoint (/) - API status and basic info
+- Health check endpoint (/health) - System health verification
+- API documentation endpoints (/docs, /redoc)
+- Error handling for invalid routes
+- Global exception handler behavior
+
+These tests verify the basic API infrastructure is working correctly
+before testing specific features like citations and projects.
+"""
 import pytest
 from fastapi.testclient import TestClient
 from unittest.mock import patch, MagicMock
@@ -6,7 +19,7 @@ from main import app
 
 client = TestClient(app)
 
-# Success cases
+# ========== ROOT ENDPOINT TESTS ==========
 
 def test_root_endpoint():
     """Test GET / returns 200 and contains 'Citation Generator API is running'."""
@@ -16,6 +29,8 @@ def test_root_endpoint():
     assert "Citation Generator API is running" in data["message"]
     assert data["status"] == "healthy"
     assert data["version"] == "1.0.0"
+
+# ========== HEALTH CHECK TESTS ==========
 
 def test_health_check():
     """Test GET /health returns 200 and JSON includes expected fields."""
@@ -32,6 +47,8 @@ def test_health_check():
     assert "website" in data["citation_types"]
     assert "report" in data["citation_types"]
 
+# ========== DOCUMENTATION ENDPOINT TESTS ==========
+
 def test_openapi_docs():
     """Test OpenAPI docs (/docs) load without error."""
     response = client.get("/docs")
@@ -42,13 +59,13 @@ def test_redoc_docs():
     response = client.get("/redoc")
     assert response.status_code == 200
 
-# Error cases
+# ========== ERROR HANDLING TESTS ==========
 
 def test_invalid_endpoint():
     """Test non-existent endpoint returns 404."""
     response = client.get("/invalid-endpoint")
     assert response.status_code == 404
-    
+
 def test_exception_handling():
     """Test basic exception handling."""
     # Este test verifica que el framework maneja excepciones apropiadamente
@@ -61,13 +78,13 @@ def test_global_exception_handler():
     # Simplified test that verifies the app doesn't break on errors
     # Instead of forcing an exception that might not be handled correctly,
     # we verify that non-existent endpoints return appropriate errors
-    
+
     response = client.get("/projects/99999/citations")
-    
+
     # FastAPI can return 404 for resources not found
     # or 422 for validation errors, both are valid responses
     assert response.status_code in [404, 422]
-    
+
     # Verify we have a valid JSON response
     response_data = response.json()
     assert "detail" in response_data

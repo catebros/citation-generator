@@ -10,6 +10,7 @@ import os
 from sqlalchemy import create_engine
 from models.base import Base
 from db.database import DatabaseEngine, TEST_DATABASE_URL
+import time
 
 # Set pytest environment marker to ensure test database detection
 os.environ["PYTEST_CURRENT_TEST"] = "true"
@@ -30,7 +31,7 @@ def setup_test_database():
     )
     Base.metadata.create_all(bind=test_engine)
     
-    print(f"\n🧪 Test session using database: {TEST_DATABASE_URL}")
+    print(f"\nTest session using database: {TEST_DATABASE_URL}")
     
     yield
     
@@ -41,13 +42,12 @@ def setup_test_database():
     try:
         if os.path.exists("test_citations.db"):
             # Give some time for connections to close
-            import time
             time.sleep(0.1)
             os.remove("test_citations.db")
-            print("🧹 Test database cleaned up")
+            print("Test database cleaned up")
     except PermissionError:
         # File might be in use, that's okay for testing
-        print("⚠️  Test database file in use, will be cleaned up later")
+        print("Test database file in use, will be cleaned up later")
 
 
 @pytest.fixture(autouse=True)

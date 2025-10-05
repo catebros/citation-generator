@@ -4,15 +4,20 @@ This script populates the database with sample data for testing and demonstratio
 Run this script after setting up the database to have sample projects and citations.
 """
 
-from db.database import get_session_factory
+from db.database import get_session_factory, engine
+from models.base import Base
 from services.project_service import ProjectService
 from services.citation_service import CitationService
 import sys
+import traceback
 
 
 def populate_database():
     """Populate the database with sample data using API services."""
-    
+
+    # Create database tables if they don't exist
+    Base.metadata.create_all(bind=engine)
+
     # Create database session
     session_factory = get_session_factory()
     session = session_factory()
@@ -41,7 +46,8 @@ def populate_database():
                 print(f"Created project: {project.name}")
             except Exception as e:
                 print(f"Error creating project {project_data['name']}: {e}")
-                import traceback
+                if hasattr(e, 'detail'):
+                    print(f"  Detail: {e.detail}")
                 traceback.print_exc()
         
         # Sample citations data for different types

@@ -56,6 +56,8 @@ cd frontend
 npm run dev
 ```
 
+This will start the backend server at `http://localhost:8000` and the frontend development server at `http://localhost:3000`.
+
 #### macOS / Linux (bash/zsh)
 Open a new terminal, then:
 ```bash
@@ -70,6 +72,8 @@ cd path/to/citation-generator
 cd frontend
 npm run dev
 ```
+
+This will start the backend server at `http://localhost:8000` and the frontend development server at `http://localhost:3000`.
 
 
 ### 3. Production Mode (Optional)
@@ -90,6 +94,8 @@ npm run build
 npm run preview
 ```
 
+This will start the backend server at `http://localhost:8000` and the frontend production server at `http://localhost:4173`.
+
 #### macOS / Linux (bash/zsh)
 Open a new terminal, then:
 ```bash
@@ -106,6 +112,7 @@ npm run build
 npm run preview
 ```
 
+This will start the backend server at `http://localhost:8000` and the frontend production server at `http://localhost:4173`.
 
 ### 4. Add Sample Data (Optional)
 
@@ -206,8 +213,11 @@ pytest -v
 # Run specific test file
 pytest tests/test_citation_service.py -v
 ```
-
-**Test Database Isolation**: Tests automatically use a separate `test_citations.db` database to avoid corrupting production data.
+> **Note:**  
+> The tests are configured to run as a group using pytest because there is a `conftest.py` configuration file in the backend test suite.  
+> This file sets up fixtures such as a dedicated test database and ensures proper isolation and cleanup between tests.  
+> Running tests individually with `python test_xxx.py` will not use these fixtures and may affect your production database.  
+> **Always run tests using `pytest` to ensure safe and isolated test execution.**
 
 ## Database
 

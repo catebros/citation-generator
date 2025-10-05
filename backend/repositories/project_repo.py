@@ -1,25 +1,59 @@
 # backend/repositories/project_repo.py
+"""
+Project repository for database operations.
+
+This module provides the ProjectRepository class which handles all database
+interactions for Project entities. It implements the repository pattern to
+separate data access logic from business logic.
+
+Key features:
+- CRUD operations for projects
+- Citation retrieval for projects (via many-to-many relationship)
+- Orphan citation cleanup when deleting projects
+- Case-insensitive project name search
+
+The repository ensures data integrity by:
+- Automatically removing orphaned citations when deleting projects
+- Preserving shared citations that belong to other projects
+- Managing ProjectCitation associations transparently
+- Ordering results by creation date for predictable behavior
+"""
 from sqlalchemy.orm import Session
 from models.project import Project
 from models.citation import Citation
 from models.project_citation import ProjectCitation
+from typing import List, Dict, Any
+
 
 class ProjectRepository:
     """
     Repository class for managing Project entities and their operations.
-    Handles CRUD operations and relationships with citations through project_citation association.
+
+    This class handles all database interactions for projects including CRUD
+    operations and retrieval of associated citations. It manages the many-to-many
+    relationship with citations through the ProjectCitation association table.
+
+    The repository implements intelligent deletion:
+    - When deleting a project, first identifies all its citations
+    - Removes all ProjectCitation associations for the project
+    - Checks each citation to see if it's now orphaned (no other projects use it)
+    - Deletes orphaned citations automatically to keep database clean
+    - Preserves citations that are still used by other projects
+
+    Attributes:
+        _db (Session): SQLAlchemy database session for executing queries
     """
-    
-    def __init__(self, db: Session):
+
+    def __init__(self, db: Session) -> None:
         """
         Initialize the repository with a database session.
-        
+
         Args:
             db (Session): SQLAlchemy database session
         """
         self._db = db
 
-    def create(self, data: dict) -> Project:
+    def create(self, data: Dict[str, Any]) -> Project:
         """
         Create a new project with the given data.
         
@@ -47,7 +81,7 @@ class ProjectRepository:
         """
         return self._db.query(Project).filter(Project.id == project_id).first()
     
-    def get_all(self) -> list[Project]:
+    def get_all(self) -> List[Project]:
         """
         Retrieve all projects from the database.
         
@@ -84,7 +118,7 @@ class ProjectRepository:
         self._db.refresh(project)
         return project   
 
-    def get_all_by_project(self, project_id: int) -> list[Citation]:
+    def get_all_by_project(self, project_id: int) -> List[Citation]:
         """
         Retrieve all citations associated with a specific project.
         Citations are ordered by year in descending order.
@@ -141,13 +175,13 @@ class ProjectRepository:
         self._db.commit()
         return True
 
-    def get_by_name(self, name: str):
+    def get_by_name(self, name: str) -> Project | None:
         """
         Retrieve a project by its name (case-insensitive).
-        
+
         Args:
             name (str): The name of the project to retrieve
-            
+
         Returns:
             Project | None: The project if found, None otherwise
         """

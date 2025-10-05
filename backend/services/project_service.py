@@ -1,38 +1,62 @@
 # backend/services/project_service.py
+from typing import Dict, List
 from repositories.citation_repo import CitationRepository
 from repositories.project_repo import ProjectRepository
 from fastapi import HTTPException
 from services.validators.project_validator import validate_project_data
+from services.citation_service import CitationService
+from models.project import Project
+from models.citation import Citation
 
 class ProjectService:
     """
-    Service class for managing project operations.
-    Handles business logic for creating, reading, updating, and deleting projects.
+    Service class for managing project operations and business logic.
+
+    This class acts as an intermediary between the API layer and the data layer,
+    handling all business logic for projects including validation, citation management,
+    and bibliography generation. It coordinates between project and citation repositories
+    to provide comprehensive project management features.
+
+    Attributes:
+        _db (Session): SQLAlchemy database session for database operations
+        _project_repo (ProjectRepository): Repository for project database operations
+        _citation_repo (CitationRepository): Repository for citation database operations
     """
-    
+
     def __init__(self, db):
         """
         Initialize the project service with database repositories.
-        
+
         Args:
-            db: Database session or connection object
+            db (Session): SQLAlchemy database session for database operations
         """
         self._db = db
         self._project_repo = ProjectRepository(db)
         self._citation_repo = CitationRepository(db)
 
-    def create_project(self, data: dict):
+    def create_project(self, data: dict) -> Project:
         """
-        Create a new project with validation.
-        
+        Create a new project with validation and uniqueness checking.
+
+        This method performs the following steps:
+        1. Validates that data is provided
+        2. Validates project data format and required fields
+        3. Checks for duplicate project names (case-insensitive after trimming)
+        4. Creates and returns the project
+
         Args:
             data (dict): Project data including name and other attributes
-            
+
         Returns:
             Project: The newly created project object
-            
+
         Raises:
-            HTTPException: If data is missing or project name already exists
+            HTTPException: 400 if data is None or validation fails
+            HTTPException: 409 if project name already exists
+
+        Note:
+            - Project names are trimmed and checked for uniqueness
+            - Name comparison is case-sensitive after trimming
         """
         # Validate required parameters
         if data is None:
@@ -54,18 +78,19 @@ class ProjectService:
 
         return self._project_repo.create(data)
 
-    def get_project(self, project_id: int):
+    def get_project(self, project_id: int) -> Project:
         """
         Retrieve a project by its unique identifier.
-        
+
         Args:
             project_id (int): Unique identifier of the project
-            
+
         Returns:
             Project: The project object if found
-            
+
         Raises:
-            HTTPException: If project_id is None or project doesn't exist
+            HTTPException: 400 if project_id is None
+            HTTPException: 404 if project doesn't exist
         """
         # Validate required parameters
         if project_id is None:
@@ -77,7 +102,7 @@ class ProjectService:
             raise HTTPException(status_code=404, detail="Project not found")
         return project
 
-    def get_all_projects(self):
+    def get_all_projects(self) -> List[Project]:
         """
         Retrieve all projects from the system.
         
@@ -86,19 +111,29 @@ class ProjectService:
         """
         return self._project_repo.get_all()
 
-    def update_project(self, project_id: int, data: dict):
+    def update_project(self, project_id: int, data: dict) -> Project:
         """
-        Update an existing project with validation.
-        
+        Update an existing project with validation and uniqueness checking.
+
+        This method validates the update data and ensures that if the name
+        is being changed, it doesn't conflict with another existing project.
+
         Args:
             project_id (int): ID of the project to update
-            data (dict): Updated project data
-            
+            data (dict): Updated project data (partial updates allowed)
+
         Returns:
             Project: The updated project object
-            
+
         Raises:
-            HTTPException: If project_id/data is None or project doesn't exist
+            HTTPException: 400 if project_id or data is None
+            HTTPException: 400 if validation fails
+            HTTPException: 404 if project doesn't exist
+            HTTPException: 409 if new name conflicts with existing project
+
+        Note:
+            - Name uniqueness check excludes the current project
+            - Project names are trimmed before comparison
         """
         # Validate required parameters
         if project_id is None:
@@ -124,18 +159,28 @@ class ProjectService:
             raise HTTPException(status_code=404, detail="Project not found")
         return project
 
-    def delete_project(self, project_id: int):
+    def delete_project(self, project_id: int) -> Dict[str, str]:
         """
-        Delete a project from the system.
-        
+        Delete a project from the system along with its citation associations.
+
+        This method removes the project and all project-citation associations.
+        Citations that are only associated with this project will also be deleted.
+
         Args:
             project_id (int): ID of the project to delete
-            
+
         Returns:
             dict: Success message confirming deletion
-            
+
         Raises:
-            HTTPException: If project_id is None or project doesn't exist
+            HTTPException: 400 if project_id is None
+            HTTPException: 404 if project doesn't exist
+            HTTPException: 500 if deletion operation fails
+
+        Note:
+            - Deleting a project cascades to remove project-citation associations
+            - Citations used only by this project are also deleted
+            - Citations shared with other projects remain in the database
         """
         # Validate required parameters
         if project_id is None:
@@ -151,18 +196,23 @@ class ProjectService:
             raise HTTPException(status_code=500, detail="Failed to delete project")
         return {"message": "Project deleted"}
 
-    def get_all_citations_by_project(self, project_id: int):
+    def get_all_citations_by_project(self, project_id: int) -> List[Citation]:
         """
         Retrieve all citations associated with a specific project.
-        
+
         Args:
             project_id (int): ID of the project to get citations for
-            
+
         Returns:
             list: List of citation objects belonging to the project
-            
+
         Raises:
-            HTTPException: If project_id is None or project doesn't exist
+            HTTPException: 400 if project_id is None
+            HTTPException: 404 if project doesn't exist
+
+        Note:
+            - Returns empty list if project has no citations
+            - Citations are returned in database order
         """
         # Validate required parameters
         if project_id is None:
@@ -176,19 +226,34 @@ class ProjectService:
         # Return all citations for this project
         return self._project_repo.get_all_by_project(project_id)
 
-    def generate_bibliography_by_project(self, project_id: int, format_type: str = "apa"):
+    def generate_bibliography_by_project(self, project_id: int, format_type: str = "apa") -> Dict[str, any]:
         """
-        Generate a formatted bibliography for a specific project.
-       
+        Generate a formatted bibliography for all citations in a project.
+
+        This method retrieves all citations for a project and formats them
+        according to the specified academic style (APA or MLA). It returns
+        a structured response with citation count and formatted citations.
+
         Args:
             project_id (int): ID of the project to generate bibliography for
-            format_type (str): Citation format (apa, mla)
-           
+            format_type (str): Citation format style ("apa" or "mla", defaults to "apa")
+
         Returns:
-            dict: Dictionary with bibliography data including formatted citations
-           
+            dict: Dictionary containing:
+                - project_id (int): The project identifier
+                - format_type (str): The citation format used
+                - bibliography (list): List of formatted citation strings
+                - citation_count (int): Number of citations formatted
+
         Raises:
-            HTTPException: If project_id is None or project doesn't exist
+            HTTPException: 400 if project_id is None
+            HTTPException: 404 if project doesn't exist
+            HTTPException: 400 if unsupported format_type is provided
+
+        Note:
+            - If project has no citations, returns empty bibliography
+            - Unsupported formats fall back to APA formatting
+            - Citations are formatted with HTML <i> tags for italics
         """
         # Validate required parameters
         if project_id is None:
@@ -210,8 +275,6 @@ class ProjectService:
                 "citation_count": 0
             }
        
-        # Import citation service to format citations
-        from services.citation_service import CitationService
         citation_service = CitationService(self._db)
        
         # Format each citation
