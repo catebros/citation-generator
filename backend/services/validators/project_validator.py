@@ -1,8 +1,11 @@
 # backend/services/validators/project_validator.py
 from fastapi import HTTPException
-from typing import Dict, Any, Optional
+from typing import Dict, List, Any, Optional
 from models.project import Project
 from sqlalchemy import inspect
+
+# String length limits for validation
+MAX_PROJECT_NAME_LENGTH = 200  # Generous limit for project names
 
 def _get_project_valid_fields():
     """Get valid fields from Project model, excluding id and created_at."""
@@ -91,6 +94,12 @@ def _validate_field_formats(data: Dict[str, Any]):
             field_validators[field](value, field)
 
 def _validate_name(name: Any, field_name: str):
-    """Validate name field - must be a non-empty string."""
+    """Validate name field - must be a non-empty string with reasonable length."""
     if not isinstance(name, str) or not name.strip():
         raise HTTPException(status_code=400, detail="Project name must be a non-empty string")
+    
+    if len(name.strip()) > MAX_PROJECT_NAME_LENGTH:
+        raise HTTPException(
+            status_code=400, 
+            detail=f"Project name exceeds maximum length of {MAX_PROJECT_NAME_LENGTH} characters"
+        )

@@ -974,3 +974,389 @@ def test_validate_place_multiple_invalid_characters_raises_exception():
     
     assert exc_info.value.status_code == 400
     assert "Place names can only contain letters, spaces, hyphens, apostrophes, periods, and commas" in exc_info.value.detail
+
+# LENGTH VALIDATION TESTS
+
+def test_validate_title_too_long_raises_exception():
+    """Test that title exceeding maximum length raises exception."""
+    long_title = "T" * 501  # MAX_TITLE_LENGTH is 500
+    invalid_data = {
+        "type": "book",
+        "title": long_title,
+        "authors": ["Author One"],
+        "year": 2023,
+        "publisher": "Test Publisher",
+        "place": "Test City",
+        "edition": 1
+    }
+    
+    with pytest.raises(HTTPException) as exc_info:
+        validate_citation_data(invalid_data, mode="create")
+    
+    assert exc_info.value.status_code == 400
+    assert "Title exceeds maximum length of 500 characters" in exc_info.value.detail
+
+def test_validate_title_at_maximum_length_passes():
+    """Test that title at exactly maximum length passes validation."""
+    max_title = "T" * 500  # MAX_TITLE_LENGTH is 500
+    valid_data = {
+        "type": "book",
+        "title": max_title,
+        "authors": ["Author One"],
+        "year": 2023,
+        "publisher": "Test Publisher",
+        "place": "Test City",
+        "edition": 1
+    }
+    
+    # Should not raise exception
+    result = validate_citation_data(valid_data, mode="create")
+    assert result is True
+
+def test_validate_author_name_too_long_raises_exception():
+    """Test that author name exceeding maximum length raises exception."""
+    long_author = "A" * 151  # MAX_AUTHOR_NAME_LENGTH is 150
+    invalid_data = {
+        "type": "book",
+        "title": "Test Book",
+        "authors": [long_author],
+        "year": 2023,
+        "publisher": "Test Publisher",
+        "place": "Test City",
+        "edition": 1
+    }
+    
+    with pytest.raises(HTTPException) as exc_info:
+        validate_citation_data(invalid_data, mode="create")
+    
+    assert exc_info.value.status_code == 400
+    assert "Author name exceeds maximum length of 150 characters" in exc_info.value.detail
+
+def test_validate_author_name_at_maximum_length_passes():
+    """Test that author name at exactly maximum length passes validation."""
+    max_author = "A" * 150  # MAX_AUTHOR_NAME_LENGTH is 150
+    valid_data = {
+        "type": "book",
+        "title": "Test Book",
+        "authors": [max_author],
+        "year": 2023,
+        "publisher": "Test Publisher",
+        "place": "Test City",
+        "edition": 1
+    }
+    
+    # Should not raise exception
+    result = validate_citation_data(valid_data, mode="create")
+    assert result is True
+
+def test_validate_publisher_too_long_raises_exception():
+    """Test that publisher exceeding maximum length raises exception."""
+    long_publisher = "P" * 201  # MAX_PUBLISHER_LENGTH is 200
+    invalid_data = {
+        "type": "book",
+        "title": "Test Book",
+        "authors": ["Author One"],
+        "year": 2023,
+        "publisher": long_publisher,
+        "place": "Test City",
+        "edition": 1
+    }
+    
+    with pytest.raises(HTTPException) as exc_info:
+        validate_citation_data(invalid_data, mode="create")
+    
+    assert exc_info.value.status_code == 400
+    assert "Publisher exceeds maximum length of 200 characters" in exc_info.value.detail
+
+def test_validate_publisher_at_maximum_length_passes():
+    """Test that publisher at exactly maximum length passes validation."""
+    max_publisher = "P" * 200  # MAX_PUBLISHER_LENGTH is 200
+    valid_data = {
+        "type": "book",
+        "title": "Test Book",
+        "authors": ["Author One"],
+        "year": 2023,
+        "publisher": max_publisher,
+        "place": "Test City",
+        "edition": 1
+    }
+    
+    # Should not raise exception
+    result = validate_citation_data(valid_data, mode="create")
+    assert result is True
+
+def test_validate_journal_too_long_raises_exception():
+    """Test that journal exceeding maximum length raises exception."""
+    long_journal = "J" * 201  # MAX_JOURNAL_LENGTH is 200
+    invalid_data = {
+        "type": "article",
+        "title": "Test Article",
+        "authors": ["Author One"],
+        "year": 2023,
+        "journal": long_journal,
+        "volume": 1,
+        "issue": "1",
+        "pages": "1-10",
+        "doi": "10.1234/test.2023"
+    }
+    
+    with pytest.raises(HTTPException) as exc_info:
+        validate_citation_data(invalid_data, mode="create")
+    
+    assert exc_info.value.status_code == 400
+    assert "Journal exceeds maximum length of 200 characters" in exc_info.value.detail
+
+def test_validate_journal_at_maximum_length_passes():
+    """Test that journal at exactly maximum length passes validation."""
+    max_journal = "J" * 200  # MAX_JOURNAL_LENGTH is 200
+    valid_data = {
+        "type": "article",
+        "title": "Test Article",
+        "authors": ["Author One"],
+        "year": 2023,
+        "journal": max_journal,
+        "volume": 1,
+        "issue": "1",
+        "pages": "1-10",
+        "doi": "10.1234/test.2023"
+    }
+    
+    # Should not raise exception
+    result = validate_citation_data(valid_data, mode="create")
+    assert result is True
+
+def test_validate_place_too_long_raises_exception():
+    """Test that place exceeding maximum length raises exception."""
+    long_place = "P" * 101  # MAX_PLACE_LENGTH is 100
+    invalid_data = {
+        "type": "book",
+        "title": "Test Book",
+        "authors": ["Author One"],
+        "year": 2023,
+        "publisher": "Test Publisher",
+        "place": long_place,
+        "edition": 1
+    }
+    
+    with pytest.raises(HTTPException) as exc_info:
+        validate_citation_data(invalid_data, mode="create")
+    
+    assert exc_info.value.status_code == 400
+    assert "Place exceeds maximum length of 100 characters" in exc_info.value.detail
+
+def test_validate_place_at_maximum_length_passes():
+    """Test that place at exactly maximum length passes validation."""
+    max_place = "P" * 100  # MAX_PLACE_LENGTH is 100
+    valid_data = {
+        "type": "book",
+        "title": "Test Book",
+        "authors": ["Author One"],
+        "year": 2023,
+        "publisher": "Test Publisher",
+        "place": max_place,
+        "edition": 1
+    }
+    
+    # Should not raise exception
+    result = validate_citation_data(valid_data, mode="create")
+    assert result is True
+
+def test_validate_url_too_long_raises_exception():
+    """Test that URL exceeding maximum length raises exception."""
+    # Create a valid URL that exceeds MAX_URL_LENGTH (2000)
+    long_url = "https://example.com/" + "a" * 1981  # Total = 2001 chars (exceeds limit)
+    invalid_data = {
+        "type": "website",
+        "title": "Test Website",
+        "authors": ["Author One"],
+        "year": 2023,
+        "publisher": "Test Publisher",
+        "url": long_url,
+        "access_date": "2023-01-01"
+    }
+    
+    with pytest.raises(HTTPException) as exc_info:
+        validate_citation_data(invalid_data, mode="create")
+    
+    assert exc_info.value.status_code == 400
+    assert "URL exceeds maximum length of 2000 characters" in exc_info.value.detail
+
+def test_validate_url_at_maximum_length_passes():
+    """Test that URL at exactly maximum length passes validation."""
+    # Create a valid URL that is exactly MAX_URL_LENGTH (2000)
+    max_url = "https://example.com/" + "a" * 1980  # Total = 2000 chars exactly
+    valid_data = {
+        "type": "website",
+        "title": "Test Website",
+        "authors": ["Author One"],
+        "year": 2023,
+        "publisher": "Test Publisher",
+        "url": max_url,
+        "access_date": "2023-01-01"
+    }
+    
+    # Should not raise exception
+    result = validate_citation_data(valid_data, mode="create")
+    assert result is True
+
+def test_validate_doi_too_long_raises_exception():
+    """Test that DOI exceeding maximum length raises exception."""
+    # Create a valid DOI that exceeds MAX_DOI_LENGTH (300)
+    long_doi = "10.1234/" + "a" * 293  # Total = 301 chars (exceeds limit)
+    invalid_data = {
+        "type": "article",
+        "title": "Test Article",
+        "authors": ["Author One"],
+        "year": 2023,
+        "journal": "Test Journal",
+        "volume": 1,
+        "issue": "1",
+        "pages": "1-10",
+        "doi": long_doi
+    }
+    
+    with pytest.raises(HTTPException) as exc_info:
+        validate_citation_data(invalid_data, mode="create")
+    
+    assert exc_info.value.status_code == 400
+    assert "DOI exceeds maximum length of 300 characters" in exc_info.value.detail
+
+def test_validate_doi_at_maximum_length_passes():
+    """Test that DOI at exactly maximum length passes validation."""
+    # Create a valid DOI that is exactly MAX_DOI_LENGTH (300)
+    max_doi = "10.1234/" + "a" * 291  # Total = 300 chars
+    valid_data = {
+        "type": "article",
+        "title": "Test Article",
+        "authors": ["Author One"],
+        "year": 2023,
+        "journal": "Test Journal",
+        "volume": 1,
+        "issue": "1",
+        "pages": "1-10",
+        "doi": max_doi
+    }
+    
+    # Should not raise exception
+    result = validate_citation_data(valid_data, mode="create")
+    assert result is True
+
+def test_validate_pages_too_long_raises_exception():
+    """Test that pages exceeding maximum length raises exception."""
+    long_pages = "1-" + "9" * 49  # Total = 51 chars (exceeds MAX_PAGES_LENGTH of 50)
+    invalid_data = {
+        "type": "article",
+        "title": "Test Article",
+        "authors": ["Author One"],
+        "year": 2023,
+        "journal": "Test Journal",
+        "volume": 1,
+        "issue": "1",
+        "pages": long_pages,
+        "doi": "10.1234/test.2023"
+    }
+    
+    with pytest.raises(HTTPException) as exc_info:
+        validate_citation_data(invalid_data, mode="create")
+    
+    assert exc_info.value.status_code == 400
+    assert "Pages exceeds maximum length of 50 characters" in exc_info.value.detail
+
+def test_validate_pages_at_maximum_length_passes():
+    """Test that pages at exactly maximum length passes validation."""
+    # Create pages that are exactly MAX_PAGES_LENGTH (50)
+    max_pages = "1-" + "9" * 47  # Total = 50 chars
+    valid_data = {
+        "type": "article",
+        "title": "Test Article",
+        "authors": ["Author One"],
+        "year": 2023,
+        "journal": "Test Journal",
+        "volume": 1,
+        "issue": "1",
+        "pages": max_pages,
+        "doi": "10.1234/test.2023"
+    }
+    
+    # Should not raise exception
+    result = validate_citation_data(valid_data, mode="create")
+    assert result is True
+
+def test_validate_issue_too_long_raises_exception():
+    """Test that issue exceeding maximum length raises exception."""
+    long_issue = "I" * 51  # MAX_ISSUE_LENGTH is 50
+    invalid_data = {
+        "type": "article",
+        "title": "Test Article",
+        "authors": ["Author One"],
+        "year": 2023,
+        "journal": "Test Journal",
+        "volume": 1,
+        "issue": long_issue,
+        "pages": "1-10",
+        "doi": "10.1234/test.2023"
+    }
+    
+    with pytest.raises(HTTPException) as exc_info:
+        validate_citation_data(invalid_data, mode="create")
+    
+    assert exc_info.value.status_code == 400
+    assert "Issue exceeds maximum length of 50 characters" in exc_info.value.detail
+
+def test_validate_issue_at_maximum_length_passes():
+    """Test that issue at exactly maximum length passes validation."""
+    max_issue = "I" * 50  # MAX_ISSUE_LENGTH is 50
+    valid_data = {
+        "type": "article",
+        "title": "Test Article",
+        "authors": ["Author One"],
+        "year": 2023,
+        "journal": "Test Journal",
+        "volume": 1,
+        "issue": max_issue,
+        "pages": "1-10",
+        "doi": "10.1234/test.2023"
+    }
+    
+    # Should not raise exception
+    result = validate_citation_data(valid_data, mode="create")
+    assert result is True
+
+def test_validate_multiple_length_violations_raises_exception():
+    """Test that multiple length violations show the first violation encountered."""
+    long_title = "T" * 501  # Exceeds title limit
+    long_author = "A" * 151  # Exceeds author limit
+    invalid_data = {
+        "type": "book",
+        "title": long_title,
+        "authors": [long_author],
+        "year": 2023,
+        "publisher": "Test Publisher",
+        "place": "Test City",
+        "edition": 1
+    }
+    
+    with pytest.raises(HTTPException) as exc_info:
+        validate_citation_data(invalid_data, mode="create")
+    
+    assert exc_info.value.status_code == 400
+    # Should show the first length violation encountered (title)
+    assert "Title exceeds maximum length of 500 characters" in exc_info.value.detail
+
+def test_validate_length_with_whitespace_trimming():
+    """Test that length validation considers trimmed values."""
+    # Title with whitespace that becomes valid after trimming
+    title_with_spaces = "   " + "T" * 495 + "   "  # 501 total, but 495 after trim (valid)
+    valid_data = {
+        "type": "book",
+        "title": title_with_spaces,
+        "authors": ["Author One"],
+        "year": 2023,
+        "publisher": "Test Publisher",
+        "place": "Test City",
+        "edition": 1
+    }
+    
+    # Should not raise exception because trimmed title is 495 chars (valid)
+    result = validate_citation_data(valid_data, mode="create")
+    assert result is True

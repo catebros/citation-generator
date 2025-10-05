@@ -6,6 +6,17 @@ from typing import Dict, List, Any, Optional
 from config.citation_config import CitationFieldsConfig
 from models.citation import Citation
 
+# String length limits for validation (generous limits for extreme cases)
+MAX_TITLE_LENGTH = 500
+MAX_AUTHOR_NAME_LENGTH = 150
+MAX_PUBLISHER_LENGTH = 200
+MAX_JOURNAL_LENGTH = 200
+MAX_PLACE_LENGTH = 100
+MAX_URL_LENGTH = 2000
+MAX_DOI_LENGTH = 300
+MAX_PAGES_LENGTH = 50
+MAX_ISSUE_LENGTH = 50
+
 def validate_citation_data(data: Dict[str, Any], mode: str = "create", current_type: Optional[str] = None, type_change: bool = False):
     """
     Main validation function for citation data.
@@ -168,6 +179,8 @@ def _validate_authors(authors: Any, field_name: str):
     for author in authors:
         if not isinstance(author, str) or not author.strip():
             raise HTTPException(status_code=400, detail=f"All {field_name.lower()} must be non-empty strings")
+        if len(author.strip()) > MAX_AUTHOR_NAME_LENGTH:
+            raise HTTPException(status_code=400, detail=f"Author name exceeds maximum length of {MAX_AUTHOR_NAME_LENGTH} characters")
         if not _is_valid_name(author.strip()):
             raise HTTPException(status_code=400, detail=f"Author names can only contain letters, spaces, hyphens, apostrophes, and periods")
 
@@ -190,6 +203,8 @@ def _validate_url(url: Any, field_name: str):
     """Validate URL field - must be a valid URL format."""
     if not isinstance(url, str):
         raise HTTPException(status_code=400, detail=f"{field_name.upper()} must be a string")
+    if len(url) > MAX_URL_LENGTH:
+        raise HTTPException(status_code=400, detail=f"{field_name.upper()} exceeds maximum length of {MAX_URL_LENGTH} characters")
     if not _is_valid_url(url):
         raise HTTPException(status_code=400, detail=f"Invalid {field_name.upper()} format")
 
@@ -197,6 +212,8 @@ def _validate_doi(doi: Any, field_name: str):
     """Validate DOI field - must follow DOI format (10.xxxx/xxxx)."""
     if not isinstance(doi, str):
         raise HTTPException(status_code=400, detail=f"{field_name.upper()} must be a string")
+    if len(doi) > MAX_DOI_LENGTH:
+        raise HTTPException(status_code=400, detail=f"{field_name.upper()} exceeds maximum length of {MAX_DOI_LENGTH} characters")
     if not _is_valid_doi(doi):
         raise HTTPException(status_code=400, detail=f"Invalid {field_name.upper()} format (expected: 10.xxxx/xxxx)")
 
@@ -204,6 +221,8 @@ def _validate_pages(pages: Any, field_name: str):
     """Validate pages field - must be in 'start-end' format or multiple ranges."""
     if not isinstance(pages, str):
         raise HTTPException(status_code=400, detail=f"{field_name.capitalize()} must be a string")
+    if len(pages) > MAX_PAGES_LENGTH:
+        raise HTTPException(status_code=400, detail=f"{field_name.capitalize()} exceeds maximum length of {MAX_PAGES_LENGTH} characters")
     if not _is_valid_pages(pages):
         raise HTTPException(status_code=400, detail=f"{field_name.capitalize()} must be in format 'start-end' or multiple ranges like '1-3, 5-7' (e.g., '123-145' or '1-3, 5-7')")
 
@@ -228,6 +247,8 @@ def _validate_place(place: Any, field_name: str):
     """Validate place field - must be a non-empty string without numbers or special characters."""
     if not isinstance(place, str) or not place.strip():
         raise HTTPException(status_code=400, detail=f"{field_name.capitalize()} must be a non-empty string")
+    if len(place.strip()) > MAX_PLACE_LENGTH:
+        raise HTTPException(status_code=400, detail=f"{field_name.capitalize()} exceeds maximum length of {MAX_PLACE_LENGTH} characters")
     if not _is_valid_place_name(place.strip()):
         raise HTTPException(status_code=400, detail=f"Place names can only contain letters, spaces, hyphens, apostrophes, periods, and commas")
 
@@ -235,6 +256,7 @@ def _validate_non_empty_string(value: Any, field_name: str):
     """Validate string fields that cannot be empty."""
     if not isinstance(value, str) or not value.strip():
         raise HTTPException(status_code=400, detail=f"{field_name.capitalize()} must be a non-empty string")
+    _validate_string_length(value.strip(), field_name)
 
 def _is_valid_url(url: str) -> bool:
     """Check if URL has valid format using regex pattern."""
@@ -296,3 +318,19 @@ def _is_valid_place_name(place: str) -> bool:
     # Exclude numbers and special characters like @, #, $, etc.
     place_pattern = re.compile(r"^[a-zA-ZÀ-ÿ\s\-\'\.',]+$")
     return place_pattern.match(place) is not None
+
+def _validate_string_length(value: str, field_name: str):
+    """Validate string length based on field type."""
+    length_limits = {
+        "title": MAX_TITLE_LENGTH,
+        "publisher": MAX_PUBLISHER_LENGTH,
+        "journal": MAX_JOURNAL_LENGTH,
+        "issue": MAX_ISSUE_LENGTH,
+    }
+    
+    max_length = length_limits.get(field_name.lower())
+    if max_length and len(value) > max_length:
+        raise HTTPException(
+            status_code=400, 
+            detail=f"{field_name.capitalize()} exceeds maximum length of {max_length} characters"
+        )
