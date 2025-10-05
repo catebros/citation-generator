@@ -37,6 +37,37 @@ const BibliographyModal: React.FC<BibliographyModalProps> = ({
   const [isLoading, setIsLoading] = useState(false);
   const [isCopied, setIsCopied] = useState(false);
 
+    // Función para extraer clave de ordenamiento por autor y año
+    function getAuthorSortKey(citation: string): string {
+      // Busca "Apellido, Nombre" al inicio
+      const match = citation.match(/^([A-Za-zÀ-ÿ'\-\.]+),\s*([A-Za-zÀ-ÿ'\-\.]+)/);
+      if (match) {
+        return `${match[1].toLowerCase()}|${match[2].toLowerCase()}`;
+      }
+      return citation.toLowerCase();
+    }
+
+    function getYearFromCitation(citation: string): number {
+      // Busca año entre paréntesis o después de coma
+      const yearMatch = citation.match(/\((\d{4})\)|, (\d{4})/);
+      if (yearMatch) {
+        return parseInt(yearMatch[1] || yearMatch[2], 10);
+      }
+      return 0;
+    }
+
+    function sortBibliography(bibliography: string[]): string[] {
+      return [...bibliography].sort((a, b) => {
+        const keyA = getAuthorSortKey(a);
+        const keyB = getAuthorSortKey(b);
+        if (keyA < keyB) return -1;
+        if (keyA > keyB) return 1;
+        // Si autor es igual, ordena por año
+        const yearA = getYearFromCitation(a);
+        const yearB = getYearFromCitation(b);
+        return yearA - yearB;
+      });
+    }
   const handleFormatSelect = async (format: 'apa' | 'mla') => {
     if (isLoading) return; // Prevent multiple clicks during loading
     
@@ -201,7 +232,7 @@ const BibliographyModal: React.FC<BibliographyModalProps> = ({
 
             <div className="bg-gray-50 rounded-lg p-6 max-h-96 overflow-y-auto">
               {bibliography.bibliography.length > 0 ? (
-                bibliography.bibliography.map((citation, index) => (
+                sortBibliography(bibliography.bibliography).map((citation, index) => (
                   <BibliographyItem key={index} text={citation} />
                 ))
               ) : (
