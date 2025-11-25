@@ -10,3 +10,5 @@ citations.db
 /backend/.pytest_cache
 
 /frontend/node_modules
+
+/extra

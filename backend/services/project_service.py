@@ -3,7 +3,8 @@ from typing import Dict, List
 from repositories.citation_repo import CitationRepository
 from repositories.project_repo import ProjectRepository
 from fastapi import HTTPException
-from services.validators.project_validator import validate_project_data
+from pydantic import ValidationError
+from schemas.project_schemas import ProjectCreate, ProjectUpdate
 from services.citation_service import CitationService
 from models.project import Project
 from models.citation import Citation
@@ -61,22 +62,25 @@ class ProjectService:
         # Validate required parameters
         if data is None:
             raise HTTPException(status_code=400, detail="data is required for project creation")
-        
-        # Validate project data format (includes name validation)
-        validate_project_data(data, mode="create")
-        
+
+        # Validate project data format using Pydantic
+        try:
+            validated_data = ProjectCreate(**data)
+        except ValidationError as e:
+            raise HTTPException(status_code=400, detail=str(e))
+
         # Extract name for uniqueness check (safe now after validation)
-        name = data.get("name")
-        
+        name = validated_data.name
+
         # Check name uniqueness
         existing_project = self._project_repo.get_by_name(name.strip())
         if existing_project:
             raise HTTPException(
-                status_code=409, 
+                status_code=409,
                 detail=f"A project with the name '{name}' already exists"
             )
 
-        return self._project_repo.create(data)
+        return self._project_repo.create(validated_data.model_dump())
 
     def get_project(self, project_id: int) -> Project:
         """
@@ -140,21 +144,25 @@ class ProjectService:
             raise HTTPException(status_code=400, detail="project_id is required")
         if data is None:
             raise HTTPException(status_code=400, detail="data is required for project updates")
-        
-        # Validate project data format (includes name validation)
-        validate_project_data(data, mode="update")
-        
+
+        # Validate project data format using Pydantic
+        try:
+            validated_data = ProjectUpdate(**data)
+        except ValidationError as e:
+            raise HTTPException(status_code=400, detail=str(e))
+
         # If name is being updated, check uniqueness
-        name = data["name"]
-            
-            # Check name uniqueness (exclude current project)
+        name = validated_data.name
+
+        # Check name uniqueness (exclude current project)
         existing_project = self._project_repo.get_by_name(name.strip())
         if existing_project and existing_project.id != project_id:
             raise HTTPException(
-                status_code=409, 
+                status_code=409,
                 detail=f"A project with the name '{name}' already exists"
-            )        # Attempt to update the project
-        project = self._project_repo.update(project_id, **data)
+            )
+        # Attempt to update the project
+        project = self._project_repo.update(project_id, **validated_data.model_dump())
         if not project:
             raise HTTPException(status_code=404, detail="Project not found")
         return project

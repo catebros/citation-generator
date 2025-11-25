@@ -2,8 +2,9 @@
 from typing import Dict
 from repositories.citation_repo import CitationRepository
 from repositories.project_repo import ProjectRepository
-from services.validators.citation_validator import validate_citation_data
+from schemas.citation_schemas import CitationCreate, CitationUpdate
 from fastapi import HTTPException
+from pydantic import ValidationError
 import json
 from services.formatters.mla_formatter import MLAFormatter
 from services.formatters.apa_formatter import APAFormatter
@@ -77,15 +78,25 @@ class CitationService:
         duplicate_citation = self._citation_repo.find_duplicate_citation_in_project(project_id, data)
         if duplicate_citation:
             raise HTTPException(
-                status_code=409, 
+                status_code=409,
                 detail="An identical citation already exists in this project"
             )
-        
-        # Validate the incoming citation data structure and required fields
-        validate_citation_data(data, mode="create")
-        
+
+        # Validate the incoming citation data structure and required fields using Pydantic
+        try:
+            validated_data = CitationCreate(**data)
+        except ValidationError as e:
+            raise HTTPException(status_code=400, detail=str(e))
+
+        # Convert to dict and serialize date/url to string for database
+        citation_dict = validated_data.model_dump()
+        if citation_dict.get('access_date'):
+            citation_dict['access_date'] = citation_dict['access_date'].strftime('%Y-%m-%d')
+        if citation_dict.get('url'):
+            citation_dict['url'] = str(citation_dict['url'])
+
         # Create and return the new citation
-        return self._citation_repo.create(project_id=project_id, **data)
+        return self._citation_repo.create(project_id=project_id, **citation_dict)
     
     def get_citation(self, citation_id: int) -> Citation:
         """
@@ -182,21 +193,93 @@ class CitationService:
                 detail="An identical citation already exists in this project"
             )
 
-        
+
         # Detect if citation type is being changed (requires special validation)
         current_type = citation.type
         new_type = data.get("type")
         type_change = new_type is not None and new_type.lower() != current_type.lower()
-        
-        # Validate the update data with context about type changes
-        validate_citation_data(data, mode="update", current_type=current_type, type_change=type_change)
-        
+
+        # Validate the update data using Pydantic
+        try:
+            validated_data = CitationUpdate(**data)
+        except ValidationError as e:
+            raise HTTPException(status_code=400, detail=str(e))
+
+        # Convert to dict and serialize date/url to string for database
+        citation_dict = validated_data.model_dump(exclude_none=True)
+        if citation_dict.get('access_date'):
+            citation_dict['access_date'] = citation_dict['access_date'].strftime('%Y-%m-%d')
+        if citation_dict.get('url'):
+            citation_dict['url'] = str(citation_dict['url'])
+
+        # If type is changing, validate additional required fields for new type
+        if type_change:
+            self._validate_type_change(citation_dict, new_type, current_type)
+
         # Perform the update operation
-        updated = self._citation_repo.update(citation_id=citation_id, project_id=project_id, **data)
+        updated = self._citation_repo.update(citation_id=citation_id, project_id=project_id, **citation_dict)
         if not updated:
             raise HTTPException(status_code=500, detail="Failed to update citation")
 
         return updated
+
+    def _validate_type_change(self, data: dict, new_type: str, current_type: str) -> None:
+        """
+        Validate fields when changing citation type during update.
+
+        When changing types, the user must provide any fields that are required
+        in the new type but weren't required in the previous type.
+
+        Args:
+            data (dict): Citation update data
+            new_type (str): New citation type being applied
+            current_type (str): Current citation type before change
+
+        Raises:
+            HTTPException: 400 if required new fields are missing
+        """
+        # Define required fields for each type
+        required_fields_map = {
+            "book": ["type", "title", "authors", "year", "publisher", "place"],
+            "article": ["type", "title", "authors", "year", "journal", "volume", "pages"],
+            "website": ["type", "title", "authors", "year", "publisher", "url", "access_date"],
+            "report": ["type", "title", "authors", "year", "publisher", "place"],
+        }
+
+        # Define valid fields for each type
+        valid_fields_map = {
+            "book": ["type", "title", "authors", "year", "publisher", "place", "edition"],
+            "article": ["type", "title", "authors", "year", "journal", "volume", "issue", "pages", "doi"],
+            "website": ["type", "title", "authors", "year", "publisher", "url", "access_date"],
+            "report": ["type", "title", "authors", "year", "publisher", "url", "place"],
+        }
+
+        new_required_fields = set(required_fields_map.get(new_type.lower(), []))
+        current_required_fields = set(required_fields_map.get(current_type.lower(), []))
+        valid_fields = set(valid_fields_map.get(new_type.lower(), []))
+
+        # Check for invalid fields (fields not allowed for new type)
+        provided_fields = set(data.keys())
+        invalid_fields = provided_fields - valid_fields
+
+        if invalid_fields:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid fields for new type {new_type}: {', '.join(invalid_fields)}. "
+                       f"Valid fields: {', '.join(sorted(valid_fields))}"
+            )
+
+        # Find fields that are required in the new type but not in the previous type
+        additional_required_fields = new_required_fields - current_required_fields
+
+        # Check if these additional fields are present in the data
+        missing = [field for field in additional_required_fields if field not in data and field != "type"]
+
+        if missing:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Type change from {current_type} to {new_type} requires additional fields: {', '.join(missing)}"
+            )
 
     def delete_citation(self, citation_id: int, project_id: int) -> Dict[str, str]:
         """
