@@ -22,7 +22,7 @@ Database schema constraints:
 - Automatic timestamp: created_at (UTC timezone)
 """
 from sqlalchemy import Column, Integer, String, Text, DateTime
-from datetime import datetime, UTC
+from datetime import datetime, timezone
 from models.base import Base
 
 
@@ -99,4 +99,4 @@ class Citation(Base):
 
     # ========== METADATA ==========
     # Automatically managed timestamp fields
-    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(UTC))  # Creation timestamp (UTC)
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))  # Creation timestamp (UTC)

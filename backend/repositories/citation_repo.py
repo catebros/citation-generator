@@ -1,23 +1,6 @@
 # backend/repositories/citation_repo.py
 """
-Citation repository for database operations.
-
-This module provides the CitationRepository class which handles all database
-interactions for Citation entities. It implements the repository pattern to
-separate data access logic from business logic.
-
-Key features:
-- CRUD operations for citations
-- Duplicate detection and prevention (case-insensitive)
-- Smart update logic that handles shared citations across multiple projects
-- Automatic orphan citation cleanup
-- Many-to-many relationship management with projects
-
-The repository ensures data integrity by:
-- Reusing existing identical citations to avoid duplication
-- Creating new citations when updating shared ones (copy-on-write)
-- Filtering citation fields by type to enforce schema consistency
-- Managing ProjectCitation associations automatically
+Citation repository for CRUD operations with duplicate detection and orphan cleanup.
 """
 from sqlalchemy.orm import Session
 from sqlalchemy import func
@@ -26,16 +9,11 @@ from models.project_citation import ProjectCitation
 from config.citation_config import CitationFieldsConfig
 import json
 from sqlalchemy import inspect
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 
 
 def _get_citation_valid_fields() -> List[str]:
-    """
-    Get valid fields from Citation model, excluding id and created_at.
-
-    Returns:
-        List[str]: List of valid citation field names that can be set/updated
-    """
+    """Get valid citation fields from model, excluding id and created_at."""
     mapper = inspect(Citation)
     excluded_fields = {'id', 'created_at'}
     return [column.key for column in mapper.columns if column.key not in excluded_fields]
@@ -44,49 +22,14 @@ def _get_citation_valid_fields() -> List[str]:
 CITATION_VALID_FIELDS = _get_citation_valid_fields()
 
 class CitationRepository:
-    """
-    Repository class for managing citation data operations.
-
-    This class handles all database interactions for citations and their associations
-    with projects. It provides CRUD operations while ensuring data integrity,
-    avoiding duplicates, and properly managing many-to-many relationships between
-    citations and projects.
-
-    The repository implements intelligent citation management:
-    - Duplicate detection: Prevents identical citations from being created multiple times
-    - Copy-on-write updates: When updating a shared citation, creates a new instance
-      for the current project to avoid affecting other projects
-    - Orphan cleanup: Automatically removes citations that no longer belong to any project
-    - Case-insensitive search: find_duplicate uses case-insensitive comparison for strings
-
-    Attributes:
-        _db (Session): SQLAlchemy database session for executing queries
-    """
+    """Handle citation CRUD, duplicate detection, and project-citation associations."""
 
     def __init__(self, db: Session) -> None:
-        """
-        Initialize the citation repository with a database session.
-
-        Args:
-            db (Session): SQLAlchemy database session for database operations
-        """
+        """Initialize repository with database session."""
         self._db = db
 
     def create(self, project_id: int, **kwargs) -> Citation:
-        """
-        Create a new citation or associate an existing identical citation with a project.
-        
-        Args:
-            project_id (int): ID of the project to associate the citation with
-            **kwargs: Citation data including type, title, authors, year, etc.
-                
-        Returns:
-            Citation: The created or existing citation object
-            
-        Note:
-            - Authors are stored as JSON in the database
-            - All validation is assumed to be done before calling this method
-        """
+        """Create citation or reuse existing identical citation for project."""
         # Convert authors list to JSON for database storage
         authors_json = json.dumps(kwargs.get("authors"))
 
@@ -158,16 +101,7 @@ class CitationRepository:
         return citation
     
     def merge_citation_data(self, current_citation: Citation, update_data: Dict[str, Any]) -> Dict[str, Any]:
-        """
-        Helper function to merge current citation data with update data and filter by type.
-        
-        Args:
-            current_citation (Citation): The current citation object
-            update_data (dict): New data to merge
-            
-        Returns:
-            dict: Merged and filtered citation data ready for comparison or creation
-        """
+        """Merge current citation with update data and filter by citation type."""
         # Prepare update data with proper JSON encoding for authors
         processed_updates = {}
         for key, value in update_data.items():
@@ -211,18 +145,8 @@ class CitationRepository:
         
         return final_data
     
-    def find_duplicate_citation_in_project(self, project_id: int, data: Dict[str, Any]) -> Citation | None:
-        """
-        Find if an identical citation already exists in a specific project.
-        Case-insensitive comparison for string fields.
-        
-        Args:
-            project_id (int): ID of the project to search in
-            data (dict): Citation data to search for
-            
-        Returns:
-            Citation | None: The duplicate citation if found, None otherwise
-        """
+    def find_duplicate_citation_in_project(self, project_id: int, data: Dict[str, Any]) -> Optional[Citation]:
+        """Find if identical citation exists in project using case-insensitive string comparison."""
         # Convert authors to JSON for comparison
         authors_json = json.dumps(data.get("authors"))
         
@@ -295,34 +219,12 @@ class CitationRepository:
         
         return query.first()
     
-    def get_by_id(self, citation_id: int) -> Citation | None:
-        """
-        Retrieve a citation by its unique identifier.
-        
-        Args:
-            citation_id (int): Unique identifier of the citation
-            
-        Returns:
-            Citation | None: The citation object if found, None otherwise
-        """
+    def get_by_id(self, citation_id: int) -> Optional[Citation]:
+        """Retrieve citation by unique identifier."""
         return self._db.query(Citation).filter(Citation.id == citation_id).first()
 
-    def delete(self, citation_id: int, project_id: int | None = None) -> bool:
-        """
-        Delete a citation or remove its association with a project.
-        
-        This method handles different deletion scenarios:
-        1. If no project associations exist, delete the citation entirely
-        2. If multiple associations exist and project_id is provided, remove only that association
-        3. If citation has associations but none match project_id, remove all associations and citation
-        
-        Args:
-            citation_id (int): ID of the citation to delete
-            project_id (int | None): ID of the project for selective association removal
-            
-        Returns:
-            bool: True if deletion was successful, False if citation not found
-        """
+    def delete(self, citation_id: int, project_id: Optional[int] = None) -> bool:
+        """Delete citation or remove project association, handling multi-project cases."""
         citation = self.get_by_id(citation_id)
         if not citation:
             return False
@@ -370,25 +272,8 @@ class CitationRepository:
         self._db.commit()
         return True
 
-    def update(self, citation_id: int, project_id: int, **kwargs) -> Citation | None:
-        """
-        Update an existing citation with new data, handling duplicates and shared citations.
-        
-        Args:
-            citation_id (int): ID of the citation to update
-            project_id (int): ID of the associated project (required for update tracking)
-            **kwargs: Fields to update, can include any citation field
-            
-        Returns:
-            Citation | None: The updated citation object or None if citation not found
-            
-        Raises:
-            ValueError: If project_id is not provided
-            
-        Note:
-            - If citation is shared by multiple projects and changes would affect others,
-              a new citation is created for this project
-        """
+    def update(self, citation_id: int, project_id: int, **kwargs) -> Optional[Citation]:
+        """Update citation, handling duplicates and creating new citations for shared cases."""
         citation = self.get_by_id(citation_id)
         if not citation:
             return None

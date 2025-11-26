@@ -22,7 +22,7 @@ Key features:
 - Project names are validated for length and format by project_validator
 """
 from sqlalchemy import Column, Integer, String, DateTime
-from datetime import datetime, UTC
+from datetime import datetime, timezone
 from models.base import Base
 
 
@@ -67,4 +67,4 @@ class Project(Base):
 
     # ========== METADATA ==========
     # Automatically managed timestamp fields
-    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(UTC))  # Creation timestamp (UTC)
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))  # Creation timestamp (UTC)

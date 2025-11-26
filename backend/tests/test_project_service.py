@@ -22,10 +22,6 @@ from services.project_service import ProjectService
 from services.citation_service import CitationService
 from repositories.project_repo import ProjectRepository
 from repositories.citation_repo import CitationRepository
-from services.validators.project_validator import (
-    validate_project_data,
-    _validate_name
-)
 
 @pytest.fixture(scope="function")
 def db_session():

@@ -1,106 +1,39 @@
 # backend/repositories/project_repo.py
 """
-Project repository for database operations.
-
-This module provides the ProjectRepository class which handles all database
-interactions for Project entities. It implements the repository pattern to
-separate data access logic from business logic.
-
-Key features:
-- CRUD operations for projects
-- Citation retrieval for projects (via many-to-many relationship)
-- Orphan citation cleanup when deleting projects
-- Case-insensitive project name search
-
-The repository ensures data integrity by:
-- Automatically removing orphaned citations when deleting projects
-- Preserving shared citations that belong to other projects
-- Managing ProjectCitation associations transparently
-- Ordering results by creation date for predictable behavior
+Project repository for CRUD operations with orphan citation cleanup.
 """
 from sqlalchemy.orm import Session
 from models.project import Project
 from models.citation import Citation
 from models.project_citation import ProjectCitation
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 
 
 class ProjectRepository:
-    """
-    Repository class for managing Project entities and their operations.
-
-    This class handles all database interactions for projects including CRUD
-    operations and retrieval of associated citations. It manages the many-to-many
-    relationship with citations through the ProjectCitation association table.
-
-    The repository implements intelligent deletion:
-    - When deleting a project, first identifies all its citations
-    - Removes all ProjectCitation associations for the project
-    - Checks each citation to see if it's now orphaned (no other projects use it)
-    - Deletes orphaned citations automatically to keep database clean
-    - Preserves citations that are still used by other projects
-
-    Attributes:
-        _db (Session): SQLAlchemy database session for executing queries
-    """
+    """Handle project CRUD and manage citations with automatic orphan cleanup."""
 
     def __init__(self, db: Session) -> None:
-        """
-        Initialize the repository with a database session.
-
-        Args:
-            db (Session): SQLAlchemy database session
-        """
+        """Initialize repository with database session."""
         self._db = db
 
     def create(self, data: Dict[str, Any]) -> Project:
-        """
-        Create a new project with the given data.
-        
-        Args:
-            data (dict): The project data containing name and other attributes
-            
-        Returns:
-            Project: The newly created project instance
-        """
+        """Create new project with provided data."""
         project = Project(name=data["name"])
         self._db.add(project)
         self._db.commit()
         self._db.refresh(project)
         return project
     
-    def get_by_id(self, project_id: int) -> Project | None:
-        """
-        Retrieve a project by its ID.
-        
-        Args:
-            project_id (int): The ID of the project to retrieve
-            
-        Returns:
-            Project | None: The project if found, None otherwise
-        """
+    def get_by_id(self, project_id: int) -> Optional[Project]:
+        """Retrieve project by identifier."""
         return self._db.query(Project).filter(Project.id == project_id).first()
     
     def get_all(self) -> List[Project]:
-        """
-        Retrieve all projects from the database.
-        
-        Returns:
-            list[Project]: List of all projects ordered by creation date (newest first)
-        """
+        """Retrieve all projects ordered by creation date (newest first)."""
         return self._db.query(Project).order_by(Project.created_at.desc()).all()
     
-    def update(self, project_id: int, **kwargs) -> Project | None:
-        """
-        Update a project with the provided key-value pairs.
-        
-        Args:
-            project_id (int): The ID of the project to update
-            **kwargs: Key-value pairs of attributes to update
-            
-        Returns:
-            Project | None: The updated project if found, None otherwise
-        """
+    def update(self, project_id: int, **kwargs) -> Optional[Project]:
+        """Update project attributes and return updated instance."""
         project = self.get_by_id(project_id)
 
         if not project:
@@ -119,16 +52,7 @@ class ProjectRepository:
         return project   
 
     def get_all_by_project(self, project_id: int) -> List[Citation]:
-        """
-        Retrieve all citations associated with a specific project.
-        Citations are ordered by year in descending order.
-        
-        Args:
-            project_id (int): The ID of the project
-            
-        Returns:
-            list[Citation]: List of citations associated with the project
-        """
+        """Retrieve all citations for a project ordered by creation date."""
         return (
             self._db.query(Citation)
             .join(ProjectCitation, Citation.id == ProjectCitation.citation_id)
@@ -138,10 +62,7 @@ class ProjectRepository:
         )      
 
     def delete(self, project_id: int) -> bool:
-        """
-        Delete a project and handle orphaned citations.
-        First deletes ProjectCitation associations, then removes orphaned citations.
-        """
+        """Delete project and handle orphaned citations automatically."""
         project = self.get_by_id(project_id)
         if not project:
             return False
@@ -175,14 +96,6 @@ class ProjectRepository:
         self._db.commit()
         return True
 
-    def get_by_name(self, name: str) -> Project | None:
-        """
-        Retrieve a project by its name (case-insensitive).
-
-        Args:
-            name (str): The name of the project to retrieve
-
-        Returns:
-            Project | None: The project if found, None otherwise
-        """
+    def get_by_name(self, name: str) -> Optional[Project]:
+        """Retrieve project by name using case-insensitive search."""
         return self._db.query(Project).filter(Project.name.ilike(name)).first()

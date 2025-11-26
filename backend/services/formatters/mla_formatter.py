@@ -5,57 +5,14 @@ from datetime import datetime
 from models.citation import Citation
 
 class MLAFormatter(BaseCitationFormatter):
-    """
-    MLA (Modern Language Association) citation formatter implementation.
-
-    This class implements citation formatting according to MLA 9th edition guidelines.
-    It handles all citation types (book, article, website, report) with proper
-    formatting including title case, author name formatting, and specific
-    punctuation and ordering rules defined by MLA style.
-
-    Attributes:
-        _citation (Citation): The citation object to be formatted (inherited from base class)
-    """
+    """Format citations according to MLA 9th edition guidelines."""
 
     def __init__(self, citation: 'Citation'):
-        """
-        Initialize MLA formatter with citation data.
-
-        Args:
-            citation (Citation): The citation object containing all citation fields
-        """
+        """Initialize MLA formatter with citation data."""
         super().__init__(citation)
 
     def _to_title_case(self, title: str) -> str:
-        """
-        Convert title to MLA Title Case format (9th edition).
-
-        MLA title case capitalizes:
-        - All major words (nouns, verbs, adjectives, adverbs)
-        - First and last words always
-        - Words after colons (subtitles)
-
-        MLA title case does NOT capitalize (unless first/last):
-        - Articles (a, an, the)
-        - Prepositions (of, in, on, at, by, for, with, etc.)
-        - Coordinating conjunctions (and, or, but, nor, for, so, yet)
-
-        Args:
-            title (str): Original title text
-
-        Returns:
-            str: Title converted to title case
-
-        Examples:
-            "the psychology of learning" -> "The Psychology of Learning"
-            "understanding the world: a guide" -> "Understanding the World: A Guide"
-            "research in modern times" -> "Research in Modern Times"
-
-        Note:
-            - First and last words are always capitalized
-            - Handles colons for subtitle capitalization
-            - Preserves punctuation
-        """
+        """Convert title to MLA title case with capitalization rules for major words."""
         if not title:
             return ""
         
@@ -116,19 +73,7 @@ class MLAFormatter(BaseCitationFormatter):
         return ': '.join(processed_parts)
     
     def format_citation(self) -> str:
-        """
-        Generate MLA format citation based on citation type.
-
-        Routes the citation to the appropriate type-specific formatter method
-        (book, article, website, or report).
-
-        Returns:
-            str: Complete formatted MLA citation with HTML markup
-
-        Note:
-            - Returns error message for unsupported citation types
-            - Formatted citations include HTML <i> tags for italics
-        """
+        """Route citation to type-specific formatter based on citation type."""
         authors = self._get_authors_list()
         formatted_authors = self._format_authors(authors)
         
@@ -144,27 +89,7 @@ class MLAFormatter(BaseCitationFormatter):
             return f"Unsupported citation type: {self._citation.type}"
     
     def _format_authors(self, authors: List[str]) -> str:
-        """
-        Format authors list according to MLA 9th edition rules.
-
-        MLA author formatting rules:
-        - 1 author: Last, First
-        - 2 authors: Last, First, and First Last
-        - 3 authors: Last, First, First Last, and First Last
-        - 4+ authors: Last, First, et al.
-
-        Args:
-            authors (list): List of author names in "First Last" format
-
-        Returns:
-            str: Formatted authors string with proper punctuation and conjunctions
-
-        Note:
-            - Only first author is inverted to "Last, First"
-            - Subsequent authors remain in "First Last" format
-            - Uses "and" (not ampersand) before last author
-            - For 4+ authors, uses "et al." after first author
-        """
+        """Format authors per MLA style with first author inverted, et al. for 4+."""
         if not authors:
             return ""
         
@@ -187,28 +112,7 @@ class MLAFormatter(BaseCitationFormatter):
             return f"{first_author}, et al."
     
     def _normalize_author_name(self, author: str) -> str:
-        """
-        Convert author name to MLA format for the first author.
-
-        Transforms the first author name from "First Last" format to MLA style
-        "Last, First" format. Only used for the first author in MLA citations.
-
-        Args:
-            author (str): Author name in "First Last" or "First Middle Last" format
-
-        Returns:
-            str: Author name in MLA format "Last, First" or "Last, First Middle"
-
-        Examples:
-            "John Smith" -> "Smith, John"
-            "John Paul Jones" -> "Jones, John Paul"
-            "Smith" -> "Smith"
-
-        Note:
-            - Only first author is inverted in MLA style
-            - All first/middle names remain after the comma
-            - Single-name authors are returned as-is
-        """
+        """Convert author name to MLA format (Last, First) for first author only."""
         author = author.strip()
         if not author:
             return ""
@@ -225,26 +129,7 @@ class MLAFormatter(BaseCitationFormatter):
         return author
     
     def _format_access_date(self, date_str: str) -> str:
-        """
-        Convert YYYY-MM-DD format to MLA access date format.
-
-        MLA access date format: "Accessed Day Mon. Year"
-
-        Args:
-            date_str (str): Date in YYYY-MM-DD format
-
-        Returns:
-            str: Formatted access date in MLA style
-
-        Examples:
-            "2025-10-02" -> "Accessed 2 Oct. 2025"
-            "2024-01-15" -> "Accessed 15 Jan. 2024"
-
-        Note:
-            - Day has no leading zero
-            - Month is abbreviated with period (except May)
-            - Returns fallback string if date parsing fails
-        """
+        """Convert YYYY-MM-DD to MLA access date format (Accessed Day Mon. Year)."""
         try:
             dt = datetime.strptime(date_str, "%Y-%m-%d")
             # Format with day without leading zero, abbreviated month with period, year
@@ -262,23 +147,7 @@ class MLAFormatter(BaseCitationFormatter):
             return f"Accessed {date_str}"
     
     def _format_book(self, authors: str) -> str:
-        """
-        Generate MLA format book citation.
-
-        MLA book format: Author. Title. Edition, Publisher, Year.
-
-        Args:
-            authors (str): Pre-formatted authors string
-
-        Returns:
-            str: Complete MLA book citation
-
-        Note:
-            - Title is italicized and in title case
-            - Edition shown only if not first edition
-            - Year defaults to "n.d." if not provided
-            - All elements separated by commas and periods
-        """
+        """Generate MLA book citation with italicized title in title case."""
         citation_parts = []
         
         if authors:
@@ -308,24 +177,7 @@ class MLAFormatter(BaseCitationFormatter):
         return " ".join(citation_parts)
     
     def _format_article(self, authors: str) -> str:
-        """
-        Generate MLA format article citation.
-
-        MLA article format: Author. "Article Title." Journal Name, vol. #, no. #, Year, pp. xxx-xxx. DOI/URL
-
-        Args:
-            authors (str): Pre-formatted authors string
-
-        Returns:
-            str: Complete MLA article citation
-
-        Note:
-            - Article title in quotes with title case
-            - Journal name italicized with title case
-            - Volume and issue numbers with "vol." and "no." labels
-            - Pages with "pp." prefix
-            - DOI or URL at end with no final period
-        """
+        """Generate MLA article citation with quoted title and italicized journal name."""
         citation_parts = []
         
         if authors:
@@ -370,25 +222,7 @@ class MLAFormatter(BaseCitationFormatter):
 
         
     def _format_website(self, authors: str) -> str:
-        """
-        Generate MLA format website citation.
-
-        MLA website format varies based on publication date:
-        - With date: Author. "Page Title." Website Name, Year, URL.
-        - Without date: Author. "Page Title." Website Name, URL. Accessed Date.
-
-        Args:
-            authors (str): Pre-formatted authors string
-
-        Returns:
-            str: Complete MLA website citation
-
-        Note:
-            - Page title in quotes with title case
-            - Website name (publisher) italicized with title case
-            - If no publication year, access date is required
-            - URL has no final period if it's last element
-        """
+        """Generate MLA website citation with quoted title, italicized publisher, and access date."""
         citation_parts = []
         
         if authors:
@@ -424,23 +258,7 @@ class MLAFormatter(BaseCitationFormatter):
 
     
     def _format_report(self, authors: str) -> str:
-        """
-        Generate MLA format report citation.
-
-        MLA report format: Author. Title. Institution, Year. URL
-
-        Args:
-            authors (str): Pre-formatted authors string
-
-        Returns:
-            str: Complete MLA report citation
-
-        Note:
-            - Title is italicized and in title case
-            - Institution (publisher) and year combined with comma
-            - Year defaults to "n.d." if not provided
-            - URL has no final period
-        """
+        """Generate MLA report citation with italicized title and access URL."""
         citation_parts = []
         
         if authors:
