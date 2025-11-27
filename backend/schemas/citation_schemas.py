@@ -1,8 +1,9 @@
 # backend/schemas/citation_schemas.py
-from pydantic import BaseModel, Field, field_validator, model_validator, HttpUrl
+from pydantic import BaseModel, Field, field_validator, model_validator, HttpUrl, field_serializer
 from typing import List, Optional, Literal
 from datetime import datetime, date
 import re
+import json
 
 # String length limits for validation
 MAX_TITLE_LENGTH = 500
@@ -138,6 +139,21 @@ class CitationCreate(CitationBase):
 
         return self
 
+    def model_dump(self, **kwargs) -> dict:
+        """Override model_dump to serialize data correctly for database storage."""
+        d = super().model_dump(**kwargs)
+        # Convert authors list to JSON string
+        if 'authors' in d and isinstance(d['authors'], list):
+            d['authors'] = json.dumps(d['authors'])
+        # Convert URL to string and remove trailing slash
+        if 'url' in d and d['url']:
+            d['url'] = str(d['url']).rstrip('/')
+        # Convert access_date to string
+        if 'access_date' in d and d['access_date']:
+            if hasattr(d['access_date'], 'strftime'):
+                d['access_date'] = d['access_date'].strftime('%Y-%m-%d')
+        return d
+
 
 class CitationUpdate(BaseModel):
     """Schema for updating a citation with partial updates allowed."""
@@ -166,7 +182,7 @@ class CitationUpdate(BaseModel):
 
 
 class CitationResponse(CitationBase):
-    """Schema for citation responses."""
+    """Schema for citation responses with deserialization of stored data."""
 
     id: int
     created_at: datetime
@@ -175,3 +191,13 @@ class CitationResponse(CitationBase):
 
     class Config:
         from_attributes = True
+    
+    @field_serializer('authors')
+    def serialize_authors(self, value):
+        """Deserialize authors from JSON string."""
+        if isinstance(value, str):
+            try:
+                return json.loads(value)
+            except (json.JSONDecodeError, TypeError):
+                return [value] if value else []
+        return value if isinstance(value, list) else []

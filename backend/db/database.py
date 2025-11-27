@@ -3,11 +3,16 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, Session
 from models.base import Base
 from typing import Generator
+import os
+from dotenv import load_dotenv
 
-# SQLite database URL - creates a local file-based database named 'citations.db'
-DATABASE_URL = "sqlite:///./citations.db"
-TEST_DATABASE_URL = "sqlite:///./test_citations.db"
+load_dotenv()
 
+# PostgreSQL is the production database
+DATABASE_URL = os.getenv(
+    "DATABASE_URL", 
+    "postgresql://postgres:postgres@localhost:5432/citation_generator_db"
+)
 
 class DatabaseEngine:
     """
@@ -31,29 +36,23 @@ class DatabaseEngine:
             cls._instance = super(DatabaseEngine, cls).__new__(cls)
         return cls._instance
     
-    def get_engine(self) -> create_engine:
+    def get_engine(self):
         """
         Get the SQLAlchemy engine, creating it if it doesn't exist.
-
+        
         Returns:
-            Engine: SQLAlchemy database engine configured for SQLite with
-                   check_same_thread disabled for concurrent access
+            Engine: SQLAlchemy database engine configured for PostgreSQL
         """
         if self._engine is None:
-            self._engine = create_engine(
-                DATABASE_URL, 
-                connect_args={"check_same_thread": False}
-            )
+            # PostgreSQL connection without special arguments
+            self._engine = create_engine(DATABASE_URL)
         return self._engine
     
     @classmethod
-    def reset_instance(cls) -> None:
+    def reset_instance(cls):
         """
         Reset the singleton instance (useful for testing).
-
-        Disposes of the existing engine (if any) and resets the singleton state.
-        This ensures proper cleanup and prevents resource leaks during testing.
-
+        
         Note:
             This method should only be used in test environments
             to ensure clean state between tests.
@@ -69,13 +68,8 @@ class DatabaseEngine:
 
 
 # Get the singleton engine instance
-def get_singleton_engine() -> create_engine:
-    """
-    Get the current singleton engine instance.
-
-    Returns:
-        Engine: The singleton SQLAlchemy database engine
-    """
+def get_singleton_engine():
+    """Get the current singleton engine instance."""
     return DatabaseEngine().get_engine()
 
 # Get the singleton engine
@@ -85,13 +79,8 @@ engine = get_singleton_engine()
 # autocommit=False: Manual transaction control (explicit commits required)
 # autoflush=False: Manual flushing of changes to database
 # bind=engine: Associates sessions with the singleton engine
-def get_session_factory() -> sessionmaker:
-    """
-    Get a session factory bound to the current singleton engine.
-
-    Returns:
-        sessionmaker: A configured session factory for creating database sessions
-    """
+def get_session_factory():
+    """Get a session factory bound to the current singleton engine."""
     return sessionmaker(autocommit=False, autoflush=False, bind=get_singleton_engine())
 
 LocalSession = get_session_factory()

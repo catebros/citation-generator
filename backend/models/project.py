@@ -59,7 +59,7 @@ class Project(Base):
 
     # ========== PRIMARY KEY ==========
     # Unique identifier for each project, auto-incremented by database
-    id = Column(Integer, primary_key=True, index=True)
+    id = Column(Integer, primary_key=True, index=True, autoincrement="auto")
 
     # ========== REQUIRED FIELDS ==========
     # Project identification and description

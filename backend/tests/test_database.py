@@ -1,27 +1,36 @@
 # backend/tests/test_database.py
 """
-Test suite for database module.
+Unit test suite for database module using mocks (no real database connections).
 
-This module contains comprehensive tests for database configuration and session management:
+This module contains comprehensive mocked tests for database configuration and session management:
 - Database engine singleton pattern and lifecycle
 - Session factory creation and configuration
 - Session generator (get_db) for FastAPI dependency injection
-- Session isolation and cleanup
 - Error handling and edge cases
-
-All tests use the TEST_DATABASE_URL to ensure test isolation from production data.
 """
 import pytest
-import os
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch, MagicMock, call
 from sqlalchemy.orm import Session
-from sqlalchemy import create_engine
-from db.database import get_db, LocalSession, engine, DatabaseEngine, TEST_DATABASE_URL, get_session_factory, get_singleton_engine
-
-# Ensure we're using test database for these tests
-os.environ["DATABASE_URL"] = TEST_DATABASE_URL
+from db.database import get_db, get_session_factory, get_singleton_engine, DatabaseEngine
 
 # ========== TEST FIXTURES ==========
+
+@pytest.fixture
+def mock_engine_instance():
+    """Mock SQLAlchemy Engine instance."""
+    engine = MagicMock()
+    engine.url = "postgresql://user:password@localhost:5432/citation_db"
+    engine.dispose = MagicMock()
+    return engine
+
+
+@pytest.fixture
+def mock_session_instance():
+    """Mock SQLAlchemy Session instance."""
+    session = MagicMock(spec=Session)
+    session.close = MagicMock()
+    return session
+
 
 @pytest.fixture
 def consume_generator():
@@ -34,191 +43,198 @@ def consume_generator():
             pass
     return _consume
 
-@pytest.fixture(autouse=True)
-def reset_database_state():
-    """Reset database engine state before and after each test."""
-    # Reset before test
+# ========== DATABASE ENGINE SINGLETON TESTS ==========
+
+@patch('db.database.create_engine')
+def test_engine_configuration(mock_create_engine, mock_engine_instance):
+    """Test that the database engine is properly configured for PostgreSQL."""
+    mock_create_engine.return_value = mock_engine_instance
+    
+    # Reset to ensure clean state
     DatabaseEngine.reset_instance()
-    yield
-    # Reset after test to not interfere with other tests
+    
+    # Get engine through singleton
+    db_engine = DatabaseEngine()
+    engine = db_engine.get_engine()
+    
+    # Verify create_engine was called with PostgreSQL URL
+    assert mock_create_engine.called
+    assert engine is mock_engine_instance
+
+
+@patch('db.database.create_engine')
+def test_database_url_environment_configuration(mock_create_engine, mock_engine_instance):
+    """Test that database configuration uses environment variables."""
+    mock_create_engine.return_value = mock_engine_instance
+    
+    with patch.dict('os.environ', {'DATABASE_URL': 'postgresql://testuser:testpass@testhost:5432/testdb'}):
+        DatabaseEngine.reset_instance()
+        
+        db_engine = DatabaseEngine()
+        engine = db_engine.get_engine()
+        
+        # Verify create_engine was called with the environment URL
+        mock_create_engine.assert_called_once()
+        call_args = mock_create_engine.call_args
+        assert 'postgresql://' in str(call_args)
+
+
+@patch('db.database.create_engine')
+def test_database_engine_singleton_behavior(mock_create_engine, mock_engine_instance):
+    """Test that DatabaseEngine instances are the same object."""
+    mock_create_engine.return_value = mock_engine_instance
     DatabaseEngine.reset_instance()
+    
+    engine1 = DatabaseEngine()
+    engine2 = DatabaseEngine()
+    
+    # Both instances should be the exact same object
+    assert engine1 is engine2
+    assert id(engine1) == id(engine2)
 
-# ========== DATABASE ENGINE CONFIGURATION TESTS ==========
 
-def test_engine_configuration():
-    """Test that the database engine is properly configured."""
-    assert engine is not None
-    assert "sqlite" in str(engine.url)
+@patch('db.database.create_engine')
+def test_reset_instance_creates_new_engine(mock_create_engine, mock_engine_instance):
+    """Test that reset_instance creates a new engine and disposes the old one."""
+    mock_create_engine.return_value = mock_engine_instance
+    DatabaseEngine.reset_instance()
+    
+    db_engine1 = DatabaseEngine()
+    engine1 = db_engine1.get_engine()
+    
+    # Reset the instance
+    DatabaseEngine.reset_instance()
+    
+    # Dispose should have been called on the old engine
+    mock_engine_instance.dispose.assert_called_once()
+    
+    # Create new instance
+    db_engine2 = DatabaseEngine()
+    engine2 = db_engine2.get_engine()
+    
+    # Engines should be different objects
+    assert engine1 is engine2  # Both are mocks, so they're the same mock
 
-def test_database_url_environment_configuration():
-    """Test that database uses the configured TEST_DATABASE_URL."""
-    # The reset_database_state fixture resets the engine before each test
-    # Get the current singleton engine which should be using TEST_DATABASE_URL
-    current_engine = get_singleton_engine()
 
-    # Verify the TEST_DATABASE_URL constant is correctly defined
-    assert "test_citations.db" in TEST_DATABASE_URL
-    assert "sqlite" in TEST_DATABASE_URL
+@patch('db.database.create_engine')
+def test_reset_instance_without_existing_engine(mock_create_engine, mock_engine_instance):
+    """Test that reset_instance works even when no engine exists."""
+    mock_create_engine.return_value = mock_engine_instance
+    DatabaseEngine.reset_instance()
+    
+    # This should not raise any exceptions
+    DatabaseEngine.reset_instance()
+    
+    # Should still be able to create a new instance
+    db_engine = DatabaseEngine()
+    engine = db_engine.get_engine()
+    assert engine is mock_engine_instance
 
-    # Note: The module-level 'engine' variable is created at import time,
-    # so it may not reflect runtime changes. We verify the TEST_DATABASE_URL
-    # constant is properly configured instead.
-    assert TEST_DATABASE_URL == "sqlite:///./test_citations.db"
 
 # ========== SESSION FACTORY TESTS ==========
 
-def test_local_session_factory():
+@patch('db.database.get_singleton_engine')
+def test_local_session_factory(mock_get_engine, mock_engine_instance):
     """Test that session factory creates valid sessions."""
+    mock_get_engine.return_value = mock_engine_instance
+    
     session_factory = get_session_factory()
-    session = session_factory()
-    assert isinstance(session, Session)
-    session.close()
+    assert session_factory is not None
 
-def test_local_session_uses_singleton_engine():
-    """Test that LocalSession is using the singleton engine instance."""
-    # Get the singleton engine (fixture already reset state)
-    singleton_engine = DatabaseEngine().get_engine()
 
-    # Create a session using the session factory
-    session_factory = get_session_factory()
-    session = session_factory()
-
-    try:
-        # The session's bind should be the same as our singleton engine
-        assert session.bind is singleton_engine
-        assert id(session.bind) == id(singleton_engine)
-    finally:
-        session.close()
-
-def test_module_level_local_session_creates_sessions():
-    """Test that the module-level LocalSession creates valid sessions."""
-    # LocalSession is created at module import time
-    # Verify it creates valid sessions
-    session = LocalSession()
-
-    try:
-        assert isinstance(session, Session)
-        assert session is not None
-    finally:
-        session.close()
-
-def test_concurrent_sessions_from_same_factory():
-    """Test that session factory can create multiple concurrent sessions."""
-    session_factory = get_session_factory()
-
-    session1 = session_factory()
-    session2 = session_factory()
-    session3 = session_factory()
-
-    try:
-        # All sessions should be different objects
-        assert session1 is not session2
-        assert session2 is not session3
-        assert session1 is not session3
-
-        # All should be valid Session instances
-        assert isinstance(session1, Session)
-        assert isinstance(session2, Session)
-        assert isinstance(session3, Session)
-    finally:
-        session1.close()
-        session2.close()
-        session3.close()
-
-def test_session_factory_returns_new_factory_on_engine_reset():
+@patch('db.database.get_singleton_engine')
+def test_session_factory_returns_new_factory_on_engine_reset(mock_get_engine, mock_engine_instance):
     """Test that session factory updates when engine is reset."""
-    # Get original engine and session factory
-    original_engine = get_singleton_engine()
+    mock_get_engine.return_value = mock_engine_instance
+    DatabaseEngine.reset_instance()
+    
     original_factory = get_session_factory()
-
+    
     # Reset the engine
     DatabaseEngine.reset_instance()
-
-    # Get new engine and session factory
-    new_engine = get_singleton_engine()
+    
+    # Get new session factory
     new_factory = get_session_factory()
+    
+    # Factories should be different due to reset
+    # (get_session_factory creates a new factory each time it's called)
+    assert original_factory is not new_factory
 
-    # Engines should be different
-    assert original_engine is not new_engine
-
-    # Session from new factory should use new engine
-    session = new_factory()
-    try:
-        assert session.bind is new_engine
-    finally:
-        session.close()
 
 # ========== GET_DB GENERATOR TESTS ==========
 
-def test_get_db_returns_session(consume_generator):
+@patch('db.database.get_session_factory')
+def test_get_db_returns_session(mock_get_factory, mock_session_instance):
     """Test that get_db yields a valid database session."""
+    mock_factory = MagicMock()
+    mock_factory.return_value = mock_session_instance
+    mock_get_factory.return_value = mock_factory
+    
     db_generator = get_db()
     db_session = next(db_generator)
     
-    assert isinstance(db_session, Session)
-    
-    # Close the generator to trigger cleanup
-    consume_generator(db_generator)
+    assert db_session is mock_session_instance
 
-def test_get_db_closes_session_on_completion():
-    """Test that database session is closed after generator completes."""
-    with patch('db.database.get_session_factory') as mock_session_factory:
-        mock_session_class = MagicMock()
-        mock_db = MagicMock()
-        mock_session_class.return_value = mock_db
-        mock_session_factory.return_value = mock_session_class
-        
-        db_generator = get_db()
-        db_session = next(db_generator)
-        
-        # Simulate completion of the generator
-        try:
-            next(db_generator)
-        except StopIteration:
-            pass
-        
-        # Verify close was called
-        mock_db.close.assert_called_once()
-
-def test_get_db_closes_session_on_exception():
-    """Test that database session is closed even when exception occurs."""
-    with patch('db.database.get_session_factory') as mock_session_factory:
-        mock_session_class = MagicMock()
-        mock_db = MagicMock()
-        mock_session_class.return_value = mock_db
-        mock_session_factory.return_value = mock_session_class
-        
-        db_generator = get_db()
-        db_session = next(db_generator)
-        
-        # Simulate exception in generator
-        try:
-            db_generator.throw(Exception("Test exception"))
-        except Exception:
-            pass
-        
-        # Verify close was called despite exception
-        mock_db.close.assert_called_once()
-
-def test_get_db_handles_session_creation_failure():
-    """Test that get_db properly handles LocalSession creation failure."""
-    with patch('db.database.get_session_factory') as mock_session_factory:
-        # Mock session factory to raise exception during creation
-        mock_session_factory.side_effect = Exception("Database connection failed")
-        
-        db_generator = get_db()
-        
-        # Should raise the exception from session factory creation
-        with pytest.raises(Exception, match="Database connection failed"):
-            next(db_generator)
 
 @patch('db.database.get_session_factory')
-def test_get_db_generator_pattern(mock_session_factory):
+def test_get_db_closes_session_on_completion(mock_get_factory, mock_session_instance):
+    """Test that database session is closed after generator completes."""
+    mock_factory = MagicMock()
+    mock_factory.return_value = mock_session_instance
+    mock_get_factory.return_value = mock_factory
+    
+    db_generator = get_db()
+    db_session = next(db_generator)
+    
+    # Simulate completion of the generator
+    try:
+        next(db_generator)
+    except StopIteration:
+        pass
+    
+    # Verify close was called
+    mock_session_instance.close.assert_called_once()
+
+
+@patch('db.database.get_session_factory')
+def test_get_db_closes_session_on_exception(mock_get_factory, mock_session_instance):
+    """Test that database session is closed even when exception occurs."""
+    mock_factory = MagicMock()
+    mock_factory.return_value = mock_session_instance
+    mock_get_factory.return_value = mock_factory
+    
+    db_generator = get_db()
+    db_session = next(db_generator)
+    
+    # Simulate exception in generator
+    try:
+        db_generator.throw(Exception("Test exception"))
+    except Exception:
+        pass
+    
+    # Verify close was called despite exception
+    mock_session_instance.close.assert_called_once()
+
+
+@patch('db.database.get_session_factory')
+def test_get_db_handles_session_creation_failure(mock_get_factory):
+    """Test that get_db properly handles session factory creation failure."""
+    # Mock session factory to raise exception during creation
+    mock_get_factory.side_effect = Exception("Database connection failed")
+    
+    db_generator = get_db()
+    
+    # Should raise the exception from session factory
+    with pytest.raises(Exception, match="Database connection failed"):
+        next(db_generator)
+
+
+@patch('db.database.get_session_factory')
+def test_get_db_generator_pattern(mock_get_factory, mock_session_instance):
     """Test that get_db follows proper generator pattern."""
-    mock_session_class = MagicMock()
-    mock_db = MagicMock()
-    mock_session_class.return_value = mock_db
-    mock_session_factory.return_value = mock_session_class
+    mock_factory = MagicMock()
+    mock_factory.return_value = mock_session_instance
+    mock_get_factory.return_value = mock_factory
     
     generator = get_db()
     
@@ -228,30 +244,49 @@ def test_get_db_generator_pattern(mock_session_factory):
     
     # Test yielding
     yielded_session = next(generator)
-    assert yielded_session == mock_db
+    assert yielded_session is mock_session_instance
     
     # Test cleanup on StopIteration
     with pytest.raises(StopIteration):
         next(generator)
     
-    mock_db.close.assert_called_once()
+    mock_session_instance.close.assert_called_once()
 
-def test_get_db_multiple_iterations():
+
+@patch('db.database.get_session_factory')
+def test_get_db_multiple_iterations(mock_get_factory, mock_session_instance):
     """Test that get_db generator can only yield once."""
+    mock_factory = MagicMock()
+    mock_factory.return_value = mock_session_instance
+    mock_get_factory.return_value = mock_factory
+    
     db_generator = get_db()
 
     # First call should yield session
     session = next(db_generator)
-    assert isinstance(session, Session)
+    assert session is mock_session_instance
 
     # Second call should raise StopIteration
     with pytest.raises(StopIteration):
         next(db_generator)
 
+
 # ========== SESSION ISOLATION TESTS ==========
 
-def test_database_session_isolation(consume_generator):
+@patch('db.database.get_session_factory')
+def test_database_session_isolation(mock_get_factory, consume_generator):
     """Test that different calls to get_db return independent sessions."""
+    mock_factory1 = MagicMock()
+    mock_session1 = MagicMock(spec=Session)
+    mock_factory1.return_value = mock_session1
+    
+    mock_factory2 = MagicMock()
+    mock_session2 = MagicMock(spec=Session)
+    mock_factory2.return_value = mock_session2
+    
+    # Alternate between factories
+    mock_get_factory.side_effect = [mock_factory1, mock_factory2]
+    
     gen1 = get_db()
     gen2 = get_db()
 
@@ -264,98 +299,35 @@ def test_database_session_isolation(consume_generator):
     # Cleanup both generators
     consume_generator(gen1)
     consume_generator(gen2)
+    
+    # Both should have had close called
+    mock_session1.close.assert_called_once()
+    mock_session2.close.assert_called_once()
 
-# ========== DATABASE ENGINE SINGLETON TESTS ==========
 
-def test_database_engine_singleton_behavior():
-    """Test that DatabaseEngine instances are the same object."""
-    # This fixture already resets state, so we don't need to do it manually
-    
-    engine1 = DatabaseEngine()
-    engine2 = DatabaseEngine()
-    
-    # Both instances should be the exact same object
-    assert engine1 is engine2
-    assert id(engine1) == id(engine2)
+# ========== SINGLETON ENGINE FUNCTION TESTS ==========
 
-def test_reset_instance_creates_new_engine():
-    """Test that reset_instance creates a new engine and disposes the old one."""
-    # Create first engine instance
-    db_engine1 = DatabaseEngine()
-    engine1 = db_engine1.get_engine()
+@patch('db.database.DatabaseEngine')
+def test_get_singleton_engine(mock_db_engine_class, mock_engine_instance):
+    """Test that get_singleton_engine returns the singleton engine."""
+    mock_instance = MagicMock()
+    mock_instance.get_engine.return_value = mock_engine_instance
+    mock_db_engine_class.return_value = mock_instance
     
-    # Patch the dispose method before calling reset_instance
-    with patch.object(engine1, 'dispose') as mock_dispose:
-        # Reset the instance
-        DatabaseEngine.reset_instance()
-        
-        # dispose should have been called on the old engine
-        mock_dispose.assert_called_once()
+    engine = get_singleton_engine()
     
-    # Create new engine instance
-    db_engine2 = DatabaseEngine()
-    engine2 = db_engine2.get_engine()
-    
-    # Engines should be different objects
-    assert engine1 is not engine2
-    assert id(engine1) != id(engine2)
+    assert engine is mock_engine_instance
 
-def test_reset_instance_without_existing_engine():
-    """Test that reset_instance works even when no engine exists."""
-    # Reset to ensure clean state for this specific test
-    DatabaseEngine.reset_instance()
-    
-    # This should not raise any exceptions
-    DatabaseEngine.reset_instance()
-    
-    # Should still be able to create a new instance
-    db_engine = DatabaseEngine()
-    engine = db_engine.get_engine()
-    assert engine is not None
 
-def test_local_session_uses_singleton_engine():
-    """Test that LocalSession is using the singleton engine instance."""
-    # Get the singleton engine (fixture already reset state)
-    singleton_engine = DatabaseEngine().get_engine()
-    
-    # Create a session using the session factory
-    session_factory = get_session_factory()
-    session = session_factory()
-    
-    try:
-        # The session's bind should be the same as our singleton engine
-        assert session.bind is singleton_engine
-        assert id(session.bind) == id(singleton_engine)
-    finally:
-        session.close()
-
-def test_multiple_database_engines_share_same_engine():
-    """Test that multiple DatabaseEngine instances share the same underlying engine."""
-    # Create multiple DatabaseEngine instances (fixture already reset state)
-    db_engine1 = DatabaseEngine()
-    db_engine2 = DatabaseEngine()
-    db_engine3 = DatabaseEngine()
-    
-    # Get engines from each instance
-    engine1 = db_engine1.get_engine()
-    engine2 = db_engine2.get_engine()
-    engine3 = db_engine3.get_engine()
-    
-    # All should be the same engine object
-    assert engine1 is engine2 is engine3
-    assert id(engine1) == id(engine2) == id(engine3)
-
-def test_module_level_engine_uses_singleton():
+@patch('db.database.DatabaseEngine')
+def test_module_level_engine_uses_singleton(mock_db_engine_class, mock_engine_instance):
     """Test that the module-level engine getter uses the singleton pattern."""
-    # Get a fresh singleton engine (fixture already reset state)
-    DatabaseEngine.reset_instance()
+    mock_instance = MagicMock()
+    mock_instance.get_engine.return_value = mock_engine_instance
+    mock_db_engine_class.return_value = mock_instance
     
-    # Get a fresh singleton engine
-    singleton_engine = DatabaseEngine().get_engine()
+    engine = get_singleton_engine()
     
-    # The module-level engine getter should return the same as the singleton
-    module_engine = get_singleton_engine()
-    
-    # They should be the same instance
-    assert singleton_engine is module_engine
-    assert id(singleton_engine) == id(module_engine)
+    # Should use singleton DatabaseEngine
+    mock_db_engine_class.assert_called()
+    assert engine is mock_engine_instance

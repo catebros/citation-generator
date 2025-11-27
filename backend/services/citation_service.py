@@ -10,7 +10,6 @@ from services.formatters.mla_formatter import MLAFormatter
 from services.formatters.apa_formatter import APAFormatter
 from models.citation import Citation
 from services.validators import ParameterValidator, CitationTypeValidator, SUPPORTED_FORMATS
-from services.converters import DataConverter
 
 class CitationService:
     """Manage citation operations with validation, duplicate detection, and formatting."""
@@ -34,7 +33,13 @@ class CitationService:
         if data is None:
             raise HTTPException(status_code=400, detail="data is required for citation creation")
         
-        # Check if an identical citation already exists in this project
+        # Validate the incoming citation data structure and required fields using Pydantic FIRST
+        try:
+            validated_data = CitationCreate(**data)
+        except ValidationError as e:
+            raise HTTPException(status_code=400, detail=str(e))
+
+        # Now check if an identical citation already exists in this project (with validated data)
         duplicate_citation = self._citation_repo.find_duplicate_citation_in_project(project_id, data)
         if duplicate_citation:
             raise HTTPException(
@@ -42,18 +47,8 @@ class CitationService:
                 detail="An identical citation already exists in this project"
             )
 
-        # Validate the incoming citation data structure and required fields using Pydantic
-        try:
-            validated_data = CitationCreate(**data)
-        except ValidationError as e:
-            raise HTTPException(status_code=400, detail=str(e))
-
-        # Convert to dict and serialize date/url to string for database
+        # Get dictionary for database - no extra conversions needed
         citation_dict = validated_data.model_dump()
-        if citation_dict.get('access_date'):
-            citation_dict['access_date'] = citation_dict['access_date'].strftime('%Y-%m-%d')
-        if citation_dict.get('url'):
-            citation_dict['url'] = str(citation_dict['url'])
 
         # Create and return the new citation
         return self._citation_repo.create(project_id=project_id, **citation_dict)
@@ -83,10 +78,9 @@ class CitationService:
         
         # Merge current citation data with updates
         merged_data = self._citation_repo.merge_citation_data(citation, data)
-        search_data = DataConverter.merge_search_data(merged_data)
         
         # Check for duplicates (excluding current citation)
-        duplicate_citation = self._citation_repo.find_duplicate_citation_in_project(project_id, search_data)
+        duplicate_citation = self._citation_repo.find_duplicate_citation_in_project(project_id, merged_data)
         if duplicate_citation and duplicate_citation.id != citation_id:
             raise HTTPException(
                 status_code=409,
@@ -104,8 +98,8 @@ class CitationService:
         except ValidationError as e:
             raise HTTPException(status_code=400, detail=str(e))
         
-        # Serialize and validate type change if applicable
-        citation_dict = DataConverter.serialize_citation_data(validated_data.model_dump(exclude_none=True))
+        # Get validated data and check type change if applicable
+        citation_dict = validated_data.model_dump(exclude_none=True)
         
         if type_change:
             CitationTypeValidator.validate_type_change(citation_dict, new_type, current_type)

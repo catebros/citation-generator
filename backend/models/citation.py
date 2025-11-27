@@ -74,7 +74,7 @@ class Citation(Base):
 
     # ========== PRIMARY KEY ==========
     # Unique identifier for each citation, auto-incremented by database
-    id = Column(Integer, primary_key=True, index=True)
+    id = Column(Integer, primary_key=True, index=True, autoincrement="auto")
 
     # ========== REQUIRED FIELDS ==========
     # These fields are required for all citation types

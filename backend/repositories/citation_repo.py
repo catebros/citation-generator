@@ -30,8 +30,13 @@ class CitationRepository:
 
     def create(self, project_id: int, **kwargs) -> Citation:
         """Create citation or reuse existing identical citation for project."""
-        # Convert authors list to JSON for database storage
-        authors_json = json.dumps(kwargs.get("authors"))
+        # Handle authors - could be list or already-serialized JSON string from schema
+        authors_value = kwargs.get("authors")
+        if isinstance(authors_value, list):
+            authors_json = json.dumps(authors_value)
+        else:
+            authors_json = authors_value  # Already serialized by schema
+
 
         # Check if an identical citation already exists to avoid duplicates
         # Compare all relevant fields to ensure exact match
@@ -147,8 +152,12 @@ class CitationRepository:
     
     def find_duplicate_citation_in_project(self, project_id: int, data: Dict[str, Any]) -> Optional[Citation]:
         """Find if identical citation exists in project using case-insensitive string comparison."""
-        # Convert authors to JSON for comparison
-        authors_json = json.dumps(data.get("authors"))
+        # Convert authors to JSON for comparison - handle both list and string types
+        authors_value = data.get("authors")
+        if isinstance(authors_value, list):
+            authors_json = json.dumps(authors_value)
+        else:
+            authors_json = authors_value  # Already serialized by schema or from DB
         
         # Build query step by step
         query = (

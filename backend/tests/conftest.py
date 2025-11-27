@@ -1,73 +1,218 @@
 """
 Test configuration for the citation generator application.
 
-This module provides test fixtures and configuration to ensure tests run
-in isolation with a separate test database.
+This module provides test fixtures with mocked database sessions.
+- Unit tests for repos use real SQLite in-memory databases
+- Router/integration tests use mocked databases to avoid PostgreSQL connection attempts
+- Service/formatter tests use mocked sessions as needed
 """
 
 import pytest
 import os
+import sys
+import tempfile
+from unittest.mock import MagicMock, patch
+from sqlalchemy.orm import Session
 from sqlalchemy import create_engine
-from models.base import Base
-from db.database import DatabaseEngine, TEST_DATABASE_URL
-import time
+from sqlalchemy.orm import sessionmaker
 
-# Set pytest environment marker to ensure test database detection
-os.environ["PYTEST_CURRENT_TEST"] = "true"
+# Add backend to path to ensure proper imports
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+# Set PostgreSQL as default database for all tests
+os.environ["DATABASE_URL"] = "postgresql://user:password@localhost:5432/citation_db"
+
+# Patch create_engine for db.database module (which tries to connect to PostgreSQL)
+# This is ONLY for preventing real DB connections in db.database module
+# Other modules like main.py will get the real create_engine
+from unittest.mock import patch
+import sqlalchemy
+
+_original_create_engine = sqlalchemy.create_engine
+_mock_postgres_engine = MagicMock()
+_mock_postgres_engine.url = "postgresql://user:password@localhost:5432/citation_db"
+_mock_postgres_engine.dispose = MagicMock()
+
+def _selective_create_engine(*args, **kwargs):
+    """Create engine, mocking PostgreSQL URLs but allowing SQLite."""
+    url_str = str(args[0]) if args else kwargs.get('url', '')
+    if 'postgresql' in str(url_str) or 'psycopg' in str(url_str):
+        # Return mock for PostgreSQL
+        return _mock_postgres_engine
+    else:
+        # Return real engine for SQLite and other local DBs
+        return _original_create_engine(*args, **kwargs)
+
+# Patch create_engine module-wide before imports
+sqlalchemy.create_engine = _selective_create_engine
 
 
-@pytest.fixture(scope="session", autouse=True)
-def setup_test_database():
+
+
+
+@pytest.fixture
+def mock_db_session():
     """
-    Set up test database for the entire test session.
+    Fixture providing a mocked SQLAlchemy Session for unit tests.
+    This fixture does NOT connect to any real database.
     """
-    # Reset the singleton to force reload with test detection
-    DatabaseEngine.reset_instance()
+    session = MagicMock(spec=Session)
     
-    # Create test database tables
-    test_engine = create_engine(
-        TEST_DATABASE_URL,
-        connect_args={"check_same_thread": False}
-    )
-    Base.metadata.create_all(bind=test_engine)
+    # Mock query() to return a chainable object
+    query_mock = MagicMock()
+    session.query.return_value = query_mock
     
-    print(f"\nTest session using database: {TEST_DATABASE_URL}")
+    # Add chainable methods for filtering
+    query_mock.filter.return_value = query_mock
+    query_mock.filter_by.return_value = query_mock
+    query_mock.order_by.return_value = query_mock
+    query_mock.all.return_value = []
+    query_mock.first.return_value = None
+    query_mock.one_or_none.return_value = None
+    query_mock.count.return_value = 0
     
-    yield
+    # Mock add/commit/refresh
+    session.add = MagicMock()
+    session.commit = MagicMock()
+    session.refresh = MagicMock()
+    session.close = MagicMock()
+    session.dispose = MagicMock()
+    session.flush = MagicMock()
+    session.execute = MagicMock()
     
-    # Cleanup after all tests
-    test_engine.dispose()
+    # Mock scalar operations
+    scalar_mock = MagicMock()
+    scalar_mock.first.return_value = None
+    scalar_mock.one_or_none.return_value = None
+    scalar_mock.all.return_value = []
     
-    # Remove test database file if it exists (with error handling)
-    try:
-        if os.path.exists("test_citations.db"):
-            # Give some time for connections to close
-            time.sleep(0.1)
-            os.remove("test_citations.db")
-            print("Test database cleaned up")
-    except PermissionError:
-        # File might be in use, that's okay for testing
-        print("Test database file in use, will be cleaned up later")
+    execute_result = MagicMock()
+    execute_result.scalar.return_value = None
+    execute_result.scalar_one_or_none.return_value = None
+    execute_result.scalars.return_value = scalar_mock
+    
+    session.execute.return_value = execute_result
+    
+    yield session
+
+
+@pytest.fixture
+def mock_engine_fixture():
+    """
+    Fixture providing a mocked SQLAlchemy Engine for unit tests.
+    This fixture does NOT create any real database connections.
+    """
+    engine = MagicMock()
+    engine.url = "postgresql://user:password@localhost:5432/citation_db"
+    engine.dispose = MagicMock()
+    yield engine
 
 
 @pytest.fixture(autouse=True)
-def clean_database():
+def reset_database_engine():
     """
-    Clean the test database before each test.
+    Reset DatabaseEngine singleton state before/after each test to prevent cross-test contamination.
     """
-    # Get the test engine
-    test_engine = create_engine(
-        TEST_DATABASE_URL,
-        connect_args={"check_same_thread": False}
-    )
-    
-    # Drop and recreate all tables for clean state
-    Base.metadata.drop_all(bind=test_engine)
-    Base.metadata.create_all(bind=test_engine)
-    
-    # Reset singleton to pick up clean database
-    DatabaseEngine.reset_instance()
+    try:
+        from db.database import DatabaseEngine
+        if hasattr(DatabaseEngine, 'reset_instance'):
+            DatabaseEngine.reset_instance()
+    except (ImportError, AttributeError):
+        pass
     
     yield
     
-    test_engine.dispose()
+    try:
+        from db.database import DatabaseEngine
+        if hasattr(DatabaseEngine, 'reset_instance'):
+            DatabaseEngine.reset_instance()
+    except (ImportError, AttributeError):
+        pass
+
+
+@pytest.fixture
+def mock_get_db(mock_db_session):
+    """
+    Fixture that patches get_db to return a mock session instead of connecting to PostgreSQL.
+    Use this in integration tests that need database access without real DB connection.
+    """
+    with patch('db.database.get_db') as mock_get_db_func:
+        def mock_get_db_gen():
+            yield mock_db_session
+        
+        mock_get_db_func.return_value = mock_get_db_gen()
+        yield mock_get_db_func
+
+
+@pytest.fixture(autouse=True)
+def auto_mock_get_db(request, mock_db_session):
+    """
+    Automatically patches get_db for non-integration tests to prevent real DB connections.
+    Integration tests that use TestClient are skipped from this fixture.
+    """
+    # Skip mocking for integration tests that need real DB
+    if 'integration' in request.node.name or 'performance' in request.node.name or 'main' in request.node.name:
+        # These tests need real DB setup instead
+        yield
+        return
+    
+    # For other tests, use mock
+    def mock_get_db_gen():
+        yield mock_db_session
+    
+    with patch('db.database.get_db', side_effect=lambda: mock_get_db_gen()):
+        yield
+
+
+@pytest.fixture(autouse=True)
+def setup_integration_db(request):
+    """
+    Setup a real SQLite database for integration tests.
+    This replaces the PostgreSQL connection with a local SQLite DB.
+    """
+    # Only apply to integration/performance/main tests
+    if not ('integration' in request.node.name or 'performance' in request.node.name or 'main' in request.node.name):
+        yield
+        return
+    
+    # Create temporary SQLite database for this test
+    fd, db_path = tempfile.mkstemp(suffix=".db")
+    os.close(fd)
+    
+    db_url = f"sqlite:///{db_path}"
+    engine = create_engine(
+        db_url,
+        connect_args={"check_same_thread": False},
+        echo=False
+    )
+    
+    # Import and create tables
+    from models.base import Base
+    Base.metadata.create_all(engine)
+    
+    # Patch database.engine and get_db to use our test database
+    from db import database
+    original_engine = database.engine
+    database.engine = engine
+    
+    TestSessionLocal = sessionmaker(bind=engine, expire_on_commit=False)
+    
+    def test_get_db():
+        """Generator for test database sessions."""
+        db = TestSessionLocal()
+        try:
+            yield db
+        finally:
+            db.close()
+    
+    original_get_db = database.get_db
+    database.get_db = test_get_db
+    
+    yield
+    
+    # Cleanup
+    database.engine = original_engine
+    database.get_db = original_get_db
+    engine.dispose()
+    os.unlink(db_path)
+

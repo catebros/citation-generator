@@ -37,6 +37,8 @@ All tests use in-memory SQLite database for fast, isolated execution.
 """
 import pytest
 import time
+import tempfile
+import os
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from models.base import Base
@@ -48,14 +50,28 @@ from repositories.citation_repo import CitationRepository
 
 @pytest.fixture(scope="function")
 def db_session():
-    engine = create_engine("sqlite:///:memory:", connect_args={"check_same_thread": False})
-    TestingSessionLocal = sessionmaker(bind=engine)
+    # Create a temporary database file
+    fd, db_path = tempfile.mkstemp(suffix=".db")
+    os.close(fd)
+    
+    db_url = f"sqlite:///{db_path}"
+    engine = create_engine(
+        db_url,
+        connect_args={"check_same_thread": False},
+        echo=False
+    )
+    TestingSessionLocal = sessionmaker(
+        bind=engine,
+        expire_on_commit=False  # Keep object attributes after commit
+    )
     Base.metadata.create_all(engine)
     db = TestingSessionLocal()
     try:
         yield db
     finally:
         db.close()
+        engine.dispose()
+        os.unlink(db_path)  # Clean up temp file
 
 # TEST FOR CREATE
 # Creates a new project and verifies it has an ID and correct name
