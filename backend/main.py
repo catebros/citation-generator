@@ -1,28 +1,19 @@
 # backend/main.py
-"""
-Main FastAPI application module for Citation Generator API.
-
-This module initializes and configures the FastAPI application with:
-- Database setup and table creation
-- CORS middleware for frontend connectivity
-- Router registration for projects and citations endpoints
-- Health check endpoints for monitoring
-- API documentation (Swagger UI and ReDoc)
-
-The application provides RESTful endpoints for managing bibliographic citations
-and projects, with support for APA and MLA citation formats.
-"""
+import os
 from typing import Any, Dict
 
-import uvicorn  # noqa: F401 - used in __main__ block
-from db.database import engine
-from fastapi import FastAPI
+from fastapi import FastAPI, status
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+import uvicorn
+from db.database import engine
 from models.base import Base
 from routers import citation_router, project_router
 
-# Create database tables
-Base.metadata.create_all(bind=engine)
+# Create database tables only in non-CI environments
+# CI environments don't have PostgreSQL available for import-time initialization
+if os.getenv("ENVIRONMENT") != "ci":
+    Base.metadata.create_all(bind=engine)
 
 # Create FastAPI application
 app = FastAPI(
@@ -45,9 +36,6 @@ app.add_middleware(
 # Include routers
 app.include_router(project_router.router)
 app.include_router(citation_router.router)
-
-# ========== HEALTH CHECK ENDPOINTS ==========
-
 
 @app.get("/", tags=["Health"])
 def read_root() -> Dict[str, Any]:
@@ -83,9 +71,6 @@ def health_check() -> Dict[str, Any]:
         "supported_formats": ["APA", "MLA"],
         "citation_types": ["article", "book", "website", "report"],
     }
-
-
-# ========== APPLICATION ENTRY POINT ==========
 
 if __name__ == "__main__":
     uvicorn.run("main:app", host="127.0.0.1", port=8000, reload=True, log_level="info")
