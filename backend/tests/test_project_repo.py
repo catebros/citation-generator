@@ -572,9 +572,9 @@ def test_create_project_and_verify_timestamp(db_session):
 
     assert project.created_at is not None
     # Verify timestamp is recent (within last minute)
-    from datetime import UTC, datetime, timedelta, timezone
+    from datetime import datetime, timedelta, timezone
 
-    now = datetime.now(UTC)
+    now = datetime.now(timezone.utc)
 
     # SQLite may return offset-naive datetime, so make it timezone-aware if needed
     created_at = project.created_at
