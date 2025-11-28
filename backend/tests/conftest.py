@@ -173,23 +173,13 @@ def auto_mock_get_db(request, mock_db_session):
         yield
 
 
-@pytest.fixture(autouse=True)
-def setup_integration_db(request):
+@pytest.fixture
+def integration_db_engine(request):
     """
-    Setup a real SQLite database for integration tests.
-    This replaces the PostgreSQL connection with a local SQLite DB.
+    Create a unique SQLite database for each integration test.
     """
-    # Only apply to integration/performance/main tests
-    if not (
-        "integration" in request.node.name
-        or "performance" in request.node.name
-        or "main" in request.node.name
-    ):
-        yield
-        return
-
-    # Create temporary SQLite database for this test
-    fd, db_path = tempfile.mkstemp(suffix=".db")
+    # Create temporary SQLite database unique to this test
+    fd, db_path = tempfile.mkstemp(suffix=f"_{request.node.name}.db")
     os.close(fd)
 
     db_url = f"sqlite:///{db_path}"
@@ -201,6 +191,34 @@ def setup_integration_db(request):
     from models.base import Base
 
     Base.metadata.create_all(engine)
+
+    yield engine
+
+    # Cleanup
+    engine.dispose()
+    try:
+        os.unlink(db_path)
+    except OSError:
+        pass
+
+
+@pytest.fixture(autouse=True)
+def setup_integration_db(request, integration_db_engine):
+    """
+    Setup SQLite database for integration tests.
+    Each test gets its own fresh database.
+    """
+    # Only apply to integration/performance/main tests
+    if not (
+        "integration" in request.node.name
+        or "performance" in request.node.name
+        or "main" in request.node.name
+    ):
+        yield
+        return
+
+    # Use unique integration_db_engine for this test
+    engine = integration_db_engine
 
     # Patch database.engine and get_db to use our test database
     from db import database
@@ -223,8 +241,6 @@ def setup_integration_db(request):
 
     yield
 
-    # Cleanup
+    # Cleanup patches
     database.engine = original_engine
     database.get_db = original_get_db
-    engine.dispose()
-    os.unlink(db_path)
