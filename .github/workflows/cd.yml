@@ -140,28 +140,39 @@ jobs:
         fi
 
     - name: Configure Backend Web App Settings
+      env:
+        AZURE_RESOURCE_GROUP: ${{ secrets.AZURE_RESOURCE_GROUP }}
+        AZURE_WEBAPP_BACKEND: ${{ secrets.AZURE_WEBAPP_BACKEND }}
+        AZURE_WEBAPP_FRONTEND: ${{ secrets.AZURE_WEBAPP_FRONTEND }}
+        DATABASE_URL: ${{ secrets.DATABASE_URL }}
       run: |
+        set -euo pipefail
         echo "Configuring backend web app settings..."
         az webapp config appsettings set \
-          --resource-group ${{ secrets.AZURE_RESOURCE_GROUP }} \
-          --name ${{ secrets.AZURE_WEBAPP_BACKEND }} \
+          --resource-group "$AZURE_RESOURCE_GROUP" \
+          --name "$AZURE_WEBAPP_BACKEND" \
           --settings \
-            DATABASE_URL="${{ secrets.DATABASE_URL }}" \
-            ALLOWED_ORIGINS="https://${{ secrets.AZURE_WEBAPP_FRONTEND }}.azurewebsites.net,https://${{ secrets.AZURE_WEBAPP_BACKEND }}.azurewebsites.net" \
-            WEBSITES_PORT="8000" \
-            ENVIRONMENT="production" \
-            DOCKER_ENABLE_CI="true"
+            "DATABASE_URL=$DATABASE_URL" \
+            "ALLOWED_ORIGINS=https://$AZURE_WEBAPP_FRONTEND.azurewebsites.net,https://$AZURE_WEBAPP_BACKEND.azurewebsites.net" \
+            "WEBSITES_PORT=8000" \
+            "ENVIRONMENT=production" \
+            "DOCKER_ENABLE_CI=true"
 
     - name: Configure Frontend Web App Settings
+      env:
+        AZURE_RESOURCE_GROUP: ${{ secrets.AZURE_RESOURCE_GROUP }}
+        AZURE_WEBAPP_BACKEND: ${{ secrets.AZURE_WEBAPP_BACKEND }}
+        AZURE_WEBAPP_FRONTEND: ${{ secrets.AZURE_WEBAPP_FRONTEND }}
       run: |
+        set -euo pipefail
         echo "Configuring frontend web app settings..."
         az webapp config appsettings set \
-          --resource-group ${{ secrets.AZURE_RESOURCE_GROUP }} \
-          --name ${{ secrets.AZURE_WEBAPP_FRONTEND }} \
+          --resource-group "$AZURE_RESOURCE_GROUP" \
+          --name "$AZURE_WEBAPP_FRONTEND" \
           --settings \
-            VITE_API_URL="https://${{ secrets.AZURE_WEBAPP_BACKEND }}.azurewebsites.net" \
-            WEBSITES_PORT="3000" \
-            DOCKER_ENABLE_CI="true"
+            "VITE_API_URL=https://$AZURE_WEBAPP_BACKEND.azurewebsites.net" \
+            "WEBSITES_PORT=3000" \
+            "DOCKER_ENABLE_CI=true"
 
     - name: Deploy Backend to Azure Web App
       id: deploy-backend
@@ -178,9 +189,14 @@ jobs:
         images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_FRONTEND }}:latest
 
     - name: Wait for Backend to be Ready
+      env:
+        AZURE_RESOURCE_GROUP: ${{ secrets.AZURE_RESOURCE_GROUP }}
+        AZURE_WEBAPP_BACKEND: ${{ secrets.AZURE_WEBAPP_BACKEND }}
       run: |
+        set -euo pipefail
         echo "Waiting for backend to be ready..."
-        BACKEND_URL="https://${{ secrets.AZURE_WEBAPP_BACKEND }}.azurewebsites.net"
+        HOST=$(az webapp show --name "$AZURE_WEBAPP_BACKEND" --resource-group "$AZURE_RESOURCE_GROUP" --query defaultHostName -o tsv)
+        BACKEND_URL="https://${HOST}"
 
         for i in {1..30}; do
           if curl -f "$BACKEND_URL/health" &>/dev/null; then
@@ -200,10 +216,21 @@ jobs:
     needs: deploy-to-azure
 
     steps:
+    - name: Resolve backend and frontend hostnames
+      env:
+        AZURE_RESOURCE_GROUP: ${{ secrets.AZURE_RESOURCE_GROUP }}
+        AZURE_WEBAPP_BACKEND: ${{ secrets.AZURE_WEBAPP_BACKEND }}
+        AZURE_WEBAPP_FRONTEND: ${{ secrets.AZURE_WEBAPP_FRONTEND }}
+      run: |
+        set -euo pipefail
+        BACKEND_HOST=$(az webapp show --name "$AZURE_WEBAPP_BACKEND" --resource-group "$AZURE_RESOURCE_GROUP" --query defaultHostName -o tsv)
+        FRONTEND_HOST=$(az webapp show --name "$AZURE_WEBAPP_FRONTEND" --resource-group "$AZURE_RESOURCE_GROUP" --query defaultHostName -o tsv)
+        echo "BACKEND_URL=https://${BACKEND_HOST}" >> $GITHUB_ENV
+        echo "FRONTEND_URL=https://${FRONTEND_HOST}" >> $GITHUB_ENV
+
     - name: Check Backend Health
       run: |
-        BACKEND_URL="https://${{ secrets.AZURE_WEBAPP_BACKEND }}.azurewebsites.net"
-
+        BACKEND_URL="${BACKEND_URL}"
         echo "Testing backend health endpoint..."
         for i in {1..10}; do
           if curl -f "$BACKEND_URL/health"; then
@@ -218,8 +245,7 @@ jobs:
 
     - name: Check Frontend Availability
       run: |
-        FRONTEND_URL="https://${{ secrets.AZURE_WEBAPP_FRONTEND }}.azurewebsites.net"
-
+        FRONTEND_URL="${FRONTEND_URL}"
         echo "Testing frontend availability..."
         if curl -f -I "$FRONTEND_URL"; then
           echo "Frontend is accessible"
@@ -233,8 +259,8 @@ jobs:
         echo "Deployment completed successfully!"
         echo ""
         echo "Your Live URLs:"
-        echo "   Backend API: https://${{ secrets.AZURE_WEBAPP_BACKEND }}.azurewebsites.net"
-        echo "   Frontend:    https://${{ secrets.AZURE_WEBAPP_FRONTEND }}.azurewebsites.net"
-        echo "   API Docs:    https://${{ secrets.AZURE_WEBAPP_BACKEND }}.azurewebsites.net/docs"
+        echo "   Backend API: ${BACKEND_URL}"
+        echo "   Frontend:    ${FRONTEND_URL}"
+        echo "   API Docs:    ${BACKEND_URL}/docs"
         echo ""
         echo "All health checks passed!"
