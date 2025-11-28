@@ -6,14 +6,19 @@ from fastapi import FastAPI, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 import uvicorn
-from db.database import engine
-from models.base import Base
 from routers import citation_router, project_router
 
 # Create database tables only in non-CI environments
 # CI environments don't have PostgreSQL available for import-time initialization
 if os.getenv("ENVIRONMENT") != "ci":
-    Base.metadata.create_all(bind=engine)
+    from db.database import engine
+    from models.base import Base
+    try:
+        Base.metadata.create_all(bind=engine)
+    except Exception as e:
+        # In CI or when database is not available, skip table creation
+        # Tables will be created on first request or by migration scripts
+        print(f"Skipping database table creation: {e}")
 
 # Create FastAPI application
 app = FastAPI(

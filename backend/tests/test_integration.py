@@ -409,3 +409,239 @@ def test_update_citation_and_regenerate_bibliography():
     finally:
         # Cleanup
         app.dependency_overrides.clear()
+
+
+def test_citation_type_validation_integration():
+    """Test creating citations with different types validates correctly."""
+
+    mock_proj_service = MagicMock()
+    mock_cit_service = MagicMock()
+
+    # Override dependencies
+    app.dependency_overrides[get_project_service] = lambda: mock_proj_service
+    app.dependency_overrides[get_citation_service] = lambda: mock_cit_service
+
+    try:
+        # Test book citation
+        book_citation = MagicMock()
+        book_citation.id = 1
+        book_citation.type = "book"
+        book_citation.title = "Test Book"
+        mock_cit_service.create_citation.return_value = book_citation
+
+        book_response = client.post(
+            "/projects/1/citations",
+            json={
+                "type": "book",
+                "authors": ["Test Author"],
+                "title": "Test Book",
+                "year": 2023,
+                "publisher": "Test Publisher",
+                "place": "Boston",
+                "edition": 1,
+            },
+        )
+        assert book_response.status_code == 201
+        assert book_response.json()["type"] == "book"
+
+        # Test article citation
+        article_citation = MagicMock()
+        article_citation.id = 2
+        article_citation.type = "article"
+        article_citation.title = "Test Article"
+        mock_cit_service.create_citation.return_value = article_citation
+
+        article_response = client.post(
+            "/projects/1/citations",
+            json={
+                "type": "article",
+                "authors": ["Test Author"],
+                "title": "Test Article",
+                "year": 2023,
+                "journal": "Test Journal",
+                "volume": 10,
+                "issue": "1",
+                "pages": "1-10",
+                "doi": "10.1000/test",
+            },
+        )
+        assert article_response.status_code == 201
+        assert article_response.json()["type"] == "article"
+
+        # Test website citation
+        website_citation = MagicMock()
+        website_citation.id = 3
+        website_citation.type = "website"
+        website_citation.title = "Test Website"
+        mock_cit_service.create_citation.return_value = website_citation
+
+        website_response = client.post(
+            "/projects/1/citations",
+            json={
+                "type": "website",
+                "authors": ["Test Author"],
+                "title": "Test Website",
+                "year": 2023,
+                "publisher": "Web Publisher",
+                "url": "https://example.com",
+                "access_date": "2023-01-01",
+            },
+        )
+        assert website_response.status_code == 201
+        assert website_response.json()["type"] == "website"
+
+    finally:
+        # Cleanup
+        app.dependency_overrides.clear()
+
+
+def test_multiple_projects_with_citations_integration():
+    """Test managing multiple projects with their own citations."""
+
+    mock_proj_service = MagicMock()
+    mock_cit_service = MagicMock()
+
+    # Override dependencies
+    app.dependency_overrides[get_project_service] = lambda: mock_proj_service
+    app.dependency_overrides[get_citation_service] = lambda: mock_cit_service
+
+    try:
+        # Create two projects
+        project1 = MagicMock()
+        project1.id = 1
+        project1.name = "Project Alpha"
+        project1.created_at = datetime.now()
+
+        project2 = MagicMock()
+        project2.id = 2
+        project2.name = "Project Beta"
+        project2.created_at = datetime.now()
+
+        mock_proj_service.create_project.side_effect = [project1, project2]
+
+        p1_response = client.post("/projects", json={"name": "Project Alpha"})
+        p2_response = client.post("/projects", json={"name": "Project Beta"})
+
+        assert p1_response.status_code == 201
+        assert p2_response.status_code == 201
+
+        project1_id = p1_response.json()["id"]
+        project2_id = p2_response.json()["id"]
+
+        # Add citations to each project
+        citation1 = MagicMock()
+        citation1.id = 1
+        citation1.type = "book"
+        citation1.title = "Alpha Book"
+
+        citation2 = MagicMock()
+        citation2.id = 2
+        citation2.type = "article"
+        citation2.title = "Beta Article"
+
+        mock_cit_service.create_citation.side_effect = [citation1, citation2]
+
+        c1_response = client.post(
+            f"/projects/{project1_id}/citations",
+            json={
+                "type": "book",
+                "authors": ["Author A"],
+                "title": "Alpha Book",
+                "year": 2023,
+                "publisher": "Publisher A",
+                "place": "City A",
+                "edition": 1,
+            },
+        )
+
+        c2_response = client.post(
+            f"/projects/{project2_id}/citations",
+            json={
+                "type": "article",
+                "authors": ["Author B"],
+                "title": "Beta Article",
+                "year": 2023,
+                "journal": "Journal B",
+                "volume": 5,
+                "issue": "2",
+                "pages": "10-20",
+                "doi": "10.1000/beta",
+            },
+        )
+
+        assert c1_response.status_code == 201
+        assert c2_response.status_code == 201
+
+        # Verify citations are associated with correct projects
+        mock_citations_p1 = [citation1]
+        mock_citations_p2 = [citation2]
+
+        mock_proj_service.get_all_citations_by_project.side_effect = [
+            mock_citations_p1,
+            mock_citations_p2,
+        ]
+
+        p1_citations = client.get(f"/projects/{project1_id}/citations")
+        p2_citations = client.get(f"/projects/{project2_id}/citations")
+
+        assert p1_citations.status_code == 200
+        assert p2_citations.status_code == 200
+
+        # Each project should have its own citations
+        assert len(p1_citations.json()) == 1
+        assert len(p2_citations.json()) == 1
+        assert p1_citations.json()[0]["title"] == "Alpha Book"
+        assert p2_citations.json()[0]["title"] == "Beta Article"
+
+    finally:
+        # Cleanup
+        app.dependency_overrides.clear()
+
+
+def test_duplicate_citation_handling_integration():
+    """Test handling of duplicate citation creation."""
+
+    mock_proj_service = MagicMock()
+    mock_cit_service = MagicMock()
+
+    # Override dependencies
+    app.dependency_overrides[get_project_service] = lambda: mock_proj_service
+    app.dependency_overrides[get_citation_service] = lambda: mock_cit_service
+
+    try:
+        # Create same citation twice
+        citation = MagicMock()
+        citation.id = 1
+        citation.type = "book"
+        citation.authors = '["Duplicate Author"]'
+        citation.title = "Duplicate Book"
+        citation.year = 2023
+        citation.publisher = "Test Publisher"
+        citation.place = "Boston"
+        citation.edition = 1
+
+        # First creation succeeds
+        mock_cit_service.create_citation.return_value = citation
+
+        citation_data = {
+            "type": "book",
+            "authors": ["Duplicate Author"],
+            "title": "Duplicate Book",
+            "year": 2023,
+            "publisher": "Test Publisher",
+            "place": "Boston",
+            "edition": 1,
+        }
+
+        response1 = client.post("/projects/1/citations", json=citation_data)
+        assert response1.status_code == 201
+
+        # Second creation with same data should return same citation (reuse)
+        response2 = client.post("/projects/1/citations", json=citation_data)
+        assert response2.status_code == 201
+        # Both should have same citation ID (reused)
+        assert response1.json()["id"] == response2.json()["id"]
+
+    finally:
+        # Cleanup
+        app.dependency_overrides.clear()

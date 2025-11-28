@@ -173,18 +173,21 @@ def auto_mock_get_db(request, mock_db_session):
         yield
 
 
-@pytest.fixture
+@pytest.fixture(scope="function")
 def integration_db_engine(request):
     """
-    Create a unique SQLite database for each integration test.
+    Create a fresh in-memory SQLite database for each integration test.
+    Using in-memory database ensures complete isolation between tests.
     """
-    # Create temporary SQLite database unique to this test
-    fd, db_path = tempfile.mkstemp(suffix=f"_{request.node.name}.db")
-    os.close(fd)
+    # Use in-memory SQLite database
+    # Each test gets completely isolated database that's automatically cleaned up
+    db_url = "sqlite:///:memory:"
 
-    db_url = f"sqlite:///{db_path}"
     engine = create_engine(
-        db_url, connect_args={"check_same_thread": False}, echo=False
+        db_url,
+        connect_args={"check_same_thread": False},
+        echo=False,
+        poolclass=sqlalchemy.pool.StaticPool
     )
 
     # Import and create tables
@@ -195,11 +198,8 @@ def integration_db_engine(request):
     yield engine
 
     # Cleanup
+    Base.metadata.drop_all(engine)
     engine.dispose()
-    try:
-        os.unlink(db_path)
-    except OSError:
-        pass
 
 
 @pytest.fixture(autouse=True)
@@ -220,7 +220,7 @@ def setup_integration_db(request, integration_db_engine):
     # Use unique integration_db_engine for this test
     engine = integration_db_engine
 
-    # Patch database.engine and get_db to use our test database
+    # Patch database.engine to use our test database
     from db import database
 
     original_engine = database.engine
@@ -236,11 +236,21 @@ def setup_integration_db(request, integration_db_engine):
         finally:
             db.close()
 
-    original_get_db = database.get_db
+    # Patch db.database.get_db
+    original_get_db_database = database.get_db
     database.get_db = test_get_db
+
+    # Override in FastAPI app
+    from main import app
+    from db.database import get_db as db_get_db_ref
+
+    app.dependency_overrides[db_get_db_ref] = test_get_db
 
     yield
 
-    # Cleanup patches
+    # Cleanup patches and overrides
     database.engine = original_engine
-    database.get_db = original_get_db
+    database.get_db = original_get_db_database
+
+    # Clear app dependency overrides
+    app.dependency_overrides.clear()
