@@ -59,7 +59,9 @@ class CitationBase(BaseModel):
     @classmethod
     def normalize_type(cls, v: str) -> str:
         """Normalize citation type to lowercase."""
-        return v.lower()
+        if isinstance(v, str):
+            return v.lower()
+        return v
 
     @field_validator("authors")
     @classmethod
