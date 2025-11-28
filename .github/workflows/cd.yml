@@ -79,6 +79,27 @@ jobs:
         tags: ${{ steps.meta-backend.outputs.tags }}
         labels: ${{ steps.meta-backend.outputs.labels }}
 
+    - name: Azure Login for getting backend URL
+      uses: azure/login@v1
+      with:
+        creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+    - name: Get Backend URL
+      id: get-backend-url
+      env:
+        AZURE_RESOURCE_GROUP: ${{ secrets.AZURE_RESOURCE_GROUP }}
+        AZURE_WEBAPP_BACKEND: ${{ secrets.AZURE_WEBAPP_BACKEND }}
+      run: |
+        set -euo pipefail
+        BACKEND_HOST=$(az webapp show --name "$AZURE_WEBAPP_BACKEND" --resource-group "$AZURE_RESOURCE_GROUP" --query defaultHostName -o tsv)
+        BACKEND_URL="https://${BACKEND_HOST}"
+        echo "BACKEND_URL=${BACKEND_URL}" >> $GITHUB_OUTPUT
+        echo "Backend URL: ${BACKEND_URL}"
+
+    - name: Azure Logout
+      if: always()
+      run: az logout
+
     - name: Extract metadata for Frontend
       id: meta-frontend
       uses: docker/metadata-action@v5
@@ -96,7 +117,7 @@ jobs:
         context: ./frontend
         file: ./frontend/Dockerfile
         build-args: |
-          VITE_API_URL=https://${{ secrets.AZURE_WEBAPP_BACKEND }}.azurewebsites.net
+          VITE_API_URL=${{ steps.get-backend-url.outputs.BACKEND_URL }}
         push: true
         tags: ${{ steps.meta-frontend.outputs.tags }}
         labels: ${{ steps.meta-frontend.outputs.labels }}
