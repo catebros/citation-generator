@@ -58,12 +58,10 @@ jobs:
         name: test-report
         path: backend/test-results/junit.xml
 
-    - name: Publish test results
+    - name: Test report summary
       if: always()
-      uses: EnricoMi/publish-unit-test-result-action@v2
-      with:
-        files: backend/test-results/junit.xml
-        check_name: Test Results
+      run: |
+        echo "Test report generated: backend/test-results/junit.xml"
 
   build:
     runs-on: ubuntu-latest
