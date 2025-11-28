@@ -11,16 +11,18 @@ and database sessions to route handlers:
 These dependencies are used throughout the application to ensure proper
 service instantiation and database session handling.
 """
+from unittest.mock import MagicMock, patch
+
 import pytest
-from unittest.mock import patch, MagicMock
-from dependencies import get_citation_service, get_project_service, get_db
+from dependencies import get_citation_service, get_db, get_project_service
 from services.citation_service import CitationService
 from services.project_service import ProjectService
 from sqlalchemy.orm import Session
 
 # ========== GET_CITATION_SERVICE TESTS ==========
 
-@patch('dependencies.get_db')
+
+@patch("dependencies.get_db")
 def test_get_citation_service_returns_citation_service_instance(mock_get_db):
     """Test get_citation_service() returns CitationService instance."""
     # Mock the database session
@@ -37,7 +39,8 @@ def test_get_citation_service_returns_citation_service_instance(mock_get_db):
     assert isinstance(citation_service, CitationService)
     assert citation_service._citation_repo is not None
 
-@patch('dependencies.CitationService')
+
+@patch("dependencies.CitationService")
 def test_citation_service_creation_error(mock_citation_service):
     """Test error when creating CitationService with invalid session."""
     mock_session = MagicMock()
@@ -48,9 +51,11 @@ def test_citation_service_creation_error(mock_citation_service):
     with pytest.raises(Exception, match="Database connection failed"):
         get_citation_service(mock_session)
 
+
 # ========== GET_PROJECT_SERVICE TESTS ==========
 
-@patch('dependencies.get_db')
+
+@patch("dependencies.get_db")
 def test_get_project_service_returns_project_service_instance(mock_get_db):
     """Test get_project_service() returns ProjectService instance."""
     # Mock the database session
@@ -67,7 +72,9 @@ def test_get_project_service_returns_project_service_instance(mock_get_db):
     assert isinstance(project_service, ProjectService)
     assert project_service._project_repo is not None
 
+
 # ========== GET_DB TESTS ==========
+
 
 def test_get_db_returns_session():
     """Test get_db() returns a valid session."""
@@ -82,7 +89,8 @@ def test_get_db_returns_session():
     except StopIteration:
         pass  # Expected when generator finishes
 
-@patch('db.database.get_session_factory')
+
+@patch("db.database.get_session_factory")
 def test_get_db_closes_on_exception(mock_session_factory):
     """Test that get_db() closes session even with exception."""
     mock_session = MagicMock()
@@ -107,7 +115,9 @@ def test_get_db_closes_on_exception(mock_session_factory):
     # Now the session should have been closed
     mock_session.close.assert_called_once()
 
+
 # ========== ERROR HANDLING TESTS ==========
+
 
 def test_get_db_exception_handling():
     """Test basic exception handling in get_db."""
@@ -120,6 +130,7 @@ def test_get_db_exception_handling():
     except Exception as e:
         # If there's an exception, it should be specific, not a generic error
         assert len(str(e)) > 0
+
 
 def test_database_connection_basic():
     """Test basic database connection."""

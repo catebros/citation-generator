@@ -24,17 +24,20 @@ Test organization:
 All tests use in-memory SQLite database for fast, isolated execution.
 """
 import pytest
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
 from models.base import Base
 from models.project import Project
 from models.project_citation import ProjectCitation
 from repositories.citation_repo import CitationRepository
 from repositories.project_repo import ProjectRepository
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+
 
 @pytest.fixture(scope="function")
 def db_session():
-    engine = create_engine("sqlite:///:memory:", connect_args={"check_same_thread": False})
+    engine = create_engine(
+        "sqlite:///:memory:", connect_args={"check_same_thread": False}
+    )
     TestingSessionLocal = sessionmaker(bind=engine)
     Base.metadata.create_all(engine)
     db = TestingSessionLocal()
@@ -42,6 +45,7 @@ def db_session():
         yield db
     finally:
         db.close()
+
 
 # ========== CREATE TESTS ==========
 # Creates a new citation linked to a project and verifies data integrity
@@ -58,12 +62,13 @@ def test_create_citation_linked_to_project(db_session):
         type="article",
         title="Deep Learning Advances",
         authors=["Jane Doe"],
-        year=2021
+        year=2021,
     )
 
     assert created.id is not None
     assert created.title == "Deep Learning Advances"
     assert "Jane Doe" in created.authors
+
 
 # Reuses existing identical citation instead of creating duplicate
 def test_create_identical_citation_reuses_existing(db_session):
@@ -79,7 +84,7 @@ def test_create_identical_citation_reuses_existing(db_session):
         type="book",
         title="Identical Book",
         authors=["Author A"],
-        year=2020
+        year=2020,
     )
 
     citation2 = repo.create(
@@ -87,10 +92,11 @@ def test_create_identical_citation_reuses_existing(db_session):
         type="book",
         title="Identical Book",
         authors=["Author A"],
-        year=2020
+        year=2020,
     )
 
     assert citation1.id == citation2.id
+
 
 # Creates new association for existing citation when used in different project
 def test_create_identical_citation_different_project(db_session):
@@ -108,7 +114,7 @@ def test_create_identical_citation_different_project(db_session):
         type="article",
         title="Shared Article",
         authors=["Shared Author"],
-        year=2020
+        year=2020,
     )
 
     citation2 = repo.create(
@@ -116,22 +122,31 @@ def test_create_identical_citation_different_project(db_session):
         type="article",
         title="Shared Article",
         authors=["Shared Author"],
-        year=2020
+        year=2020,
     )
 
     assert citation1.id == citation2.id
 
-    assoc1 = db_session.query(ProjectCitation).filter(
-        ProjectCitation.project_id == project1.id,
-        ProjectCitation.citation_id == citation1.id
-    ).first()
-    assoc2 = db_session.query(ProjectCitation).filter(
-        ProjectCitation.project_id == project2.id,
-        ProjectCitation.citation_id == citation2.id
-    ).first()
+    assoc1 = (
+        db_session.query(ProjectCitation)
+        .filter(
+            ProjectCitation.project_id == project1.id,
+            ProjectCitation.citation_id == citation1.id,
+        )
+        .first()
+    )
+    assoc2 = (
+        db_session.query(ProjectCitation)
+        .filter(
+            ProjectCitation.project_id == project2.id,
+            ProjectCitation.citation_id == citation2.id,
+        )
+        .first()
+    )
 
     assert assoc1 is not None
     assert assoc2 is not None
+
 
 # Creates citation with all possible optional fields populated
 def test_create_citation_with_all_optional_fields(db_session):
@@ -158,7 +173,7 @@ def test_create_citation_with_all_optional_fields(db_session):
         url="https://example.com/article",
         access_date="2024-01-15",
         place="New York",
-        edition=2
+        edition=2,
     )
 
     assert citation.id is not None
@@ -179,6 +194,7 @@ def test_create_citation_with_all_optional_fields(db_session):
     assert citation.place == "New York"
     assert citation.edition == 2
 
+
 # Detects case-insensitive duplicate citations in a project
 def test_find_duplicate_citation_case_insensitive(db_session):
     """Test that find_duplicate_citation_in_project detects duplicates with different case."""
@@ -195,7 +211,7 @@ def test_find_duplicate_citation_case_insensitive(db_session):
         type="article",
         title="Machine Learning Fundamentals",
         authors=["John Doe"],
-        year=2021
+        year=2021,
     )
 
     # Test different case combinations
@@ -213,12 +229,13 @@ def test_find_duplicate_citation_case_insensitive(db_session):
         "url": None,
         "access_date": None,
         "place": None,
-        "edition": None
+        "edition": None,
     }
 
     duplicate = repo.find_duplicate_citation_in_project(project.id, test_data)
     assert duplicate is not None
     assert duplicate.id == original.id
+
 
 # Verifies case-insensitive comparison doesn't create false positives
 def test_find_duplicate_citation_no_false_positive(db_session):
@@ -231,12 +248,12 @@ def test_find_duplicate_citation_no_false_positive(db_session):
     db_session.refresh(project)
 
     # Create original citation
-    original = repo.create(
+    repo.create(
         project_id=project.id,
         type="book",
         title="Original Title",
         authors=["Author One"],
-        year=2020
+        year=2020,
     )
 
     # Test with completely different content
@@ -254,11 +271,12 @@ def test_find_duplicate_citation_no_false_positive(db_session):
         "url": None,
         "access_date": None,
         "place": None,
-        "edition": None
+        "edition": None,
     }
 
     duplicate = repo.find_duplicate_citation_in_project(project.id, test_data)
     assert duplicate is None  # Should not find a duplicate
+
 
 # ========== GET BY ID TESTS ==========
 # Retrieves citation by ID and verifies all attributes match
@@ -275,7 +293,7 @@ def test_get_citation_by_id(db_session):
         type="article",
         title="Deep Learning Advances",
         authors=["Jane Doe"],
-        year=2021
+        year=2021,
     )
 
     fetched = repo.get_by_id(created.id)
@@ -285,6 +303,7 @@ def test_get_citation_by_id(db_session):
     assert fetched.title == "Deep Learning Advances"
     assert "Jane Doe" in fetched.authors
 
+
 # Returns None when citation ID doesn't exist
 def test_get_citation_by_id_not_found(db_session):
     repo = CitationRepository(db_session)
@@ -293,14 +312,16 @@ def test_get_citation_by_id_not_found(db_session):
 
     assert fetched is None
 
+
 # ========== DELETE TESTS ==========
 # Returns False when trying to delete non-existent citation
 def test_delete_citation_not_found(db_session):
     repo = CitationRepository(db_session)
-    
+
     result = repo.delete(999, project_id=1)
-    
+
     assert result is False
+
 
 # Deletes citation and association when only one project uses it
 def test_delete_citation_single_project(db_session):
@@ -330,7 +351,9 @@ def test_delete_citation_single_project(db_session):
     )
     assert assoc is None
 
+
 # Removes association but preserves citation when used by multiple projects
+
 
 def test_delete_citation_multiple_projects(db_session):
     repo = CitationRepository(db_session)
@@ -366,35 +389,43 @@ def test_delete_citation_multiple_projects(db_session):
 
     assoc1 = (
         db_session.query(ProjectCitation)
-        .filter(ProjectCitation.project_id == project1.id, ProjectCitation.citation_id == citation.id)
+        .filter(
+            ProjectCitation.project_id == project1.id,
+            ProjectCitation.citation_id == citation.id,
+        )
         .first()
     )
     assoc2 = (
         db_session.query(ProjectCitation)
-        .filter(ProjectCitation.project_id == project2.id, ProjectCitation.citation_id == citation.id)
+        .filter(
+            ProjectCitation.project_id == project2.id,
+            ProjectCitation.citation_id == citation.id,
+        )
         .first()
     )
     assert assoc1 is None
     assert assoc2 is not None
+
 
 # Deletes orphan citation that has no project associations
 def test_delete_orphan_citation(db_session):
     repo = CitationRepository(db_session)
 
     citation = repo.create(
-        project_id=1,  
+        project_id=1,
         type="book",
         title="Orphan Citation",
         authors=["Author C"],
         year=1999,
     )
 
-    db_session.query(ProjectCitation).delete()  
+    db_session.query(ProjectCitation).delete()
     db_session.commit()
 
     ok = repo.delete(citation.id)
     assert ok is True
     assert repo.get_by_id(citation.id) is None
+
 
 # Deletes citation with project_id=None removes all associations
 def test_delete_citation_with_none_project_id(db_session):
@@ -414,7 +445,7 @@ def test_delete_citation_with_none_project_id(db_session):
         type="book",
         title="Shared Book",
         authors=["Shared Author"],
-        year=2020
+        year=2020,
     )
 
     # Add to second project
@@ -423,7 +454,7 @@ def test_delete_citation_with_none_project_id(db_session):
         type="book",
         title="Shared Book",
         authors=["Shared Author"],
-        year=2020
+        year=2020,
     )
 
     # Delete with project_id=None should remove citation entirely
@@ -433,10 +464,13 @@ def test_delete_citation_with_none_project_id(db_session):
     assert repo.get_by_id(citation.id) is None
 
     # Verify all associations removed
-    assocs = db_session.query(ProjectCitation).filter(
-        ProjectCitation.citation_id == citation.id
-    ).all()
+    assocs = (
+        db_session.query(ProjectCitation)
+        .filter(ProjectCitation.citation_id == citation.id)
+        .all()
+    )
     assert len(assocs) == 0
+
 
 # ========== UPDATE TESTS ==========
 # Updates citation fields and verifies changes are applied
@@ -453,14 +487,17 @@ def test_update_citation(db_session):
         type="book",
         title="Old Title",
         authors=["Jane Doe"],
-        year=2000
+        year=2000,
     )
 
-    updated = repo.update(citation.id, project_id=project.id, title="New Title", year=2021)
+    updated = repo.update(
+        citation.id, project_id=project.id, title="New Title", year=2021
+    )
 
     assert updated is not None
     assert updated.title == "New Title"
     assert updated.year == 2021
+
 
 # Updates citation title and year fields specifically
 def test_update_citation_title_and_year(db_session):
@@ -471,11 +508,14 @@ def test_update_citation_title_and_year(db_session):
     db_session.commit()
     db_session.refresh(project)
 
-    c = repo.create(project_id=project.id, type="book", title="Old", authors=["X"], year=1990)
+    c = repo.create(
+        project_id=project.id, type="book", title="Old", authors=["X"], year=1990
+    )
 
     updated = repo.update(c.id, project_id=project.id, title="New", year=2000)
     assert updated.title == "New"
     assert updated.year == 2000
+
 
 # Updates citation authors list
 def test_update_citation_authors(db_session):
@@ -486,11 +526,18 @@ def test_update_citation_authors(db_session):
     db_session.commit()
     db_session.refresh(project)
 
-    c = repo.create(project_id=project.id, type="article", title="Authored", authors=["Y"], year=2001)
+    c = repo.create(
+        project_id=project.id,
+        type="article",
+        title="Authored",
+        authors=["Y"],
+        year=2001,
+    )
 
     updated = repo.update(c.id, project_id=project.id, authors=["Y", "Z"])
     assert "Y" in updated.authors
     assert "Z" in updated.authors
+
 
 # Returns None when trying to update non-existent citation
 def test_update_citation_not_found(db_session):
@@ -505,6 +552,7 @@ def test_update_citation_not_found(db_session):
 
     assert result is None
 
+
 # Merges with existing identical citation when update creates duplicate
 def test_update_citation_merges_with_existing_identical(db_session):
     repo = CitationRepository(db_session)
@@ -513,38 +561,39 @@ def test_update_citation_merges_with_existing_identical(db_session):
     db_session.add(project)
     db_session.commit()
     db_session.refresh(project)
-    
+
     existing_citation = repo.create(
         project_id=project.id,
         type="article",
         title="Existing Article",
         authors=["Author A"],
-        year=2020
+        year=2020,
     )
-    
+
     citation_to_update = repo.create(
         project_id=project.id,
         type="book",
         title="Book to Update",
         authors=["Author B"],
-        year=2021
+        year=2021,
     )
-    
+
     updated = repo.update(
         citation_to_update.id,
         project_id=project.id,
         type="article",
         title="Existing Article",
         authors=["Author A"],
-        year=2020
+        year=2020,
     )
-    
+
     assert updated.id == existing_citation.id
-    
+
     assert repo.get_by_id(citation_to_update.id) is None
-    
+
     all_citations = project_repo.get_all_by_project(project.id)
     assert len(all_citations) == 1
+
 
 # Creates new citation when updating shared citation to avoid affecting other projects
 def test_update_citation_multiple_projects_creates_new(db_session):
@@ -556,66 +605,63 @@ def test_update_citation_multiple_projects_creates_new(db_session):
     db_session.commit()
     db_session.refresh(project1)
     db_session.refresh(project2)
-    
+
     original_citation = repo.create(
         project_id=project1.id,
         type="article",
         title="Shared Article",
         authors=["Shared Author"],
-        year=2020
+        year=2020,
     )
-    
+
     assoc = ProjectCitation(project_id=project2.id, citation_id=original_citation.id)
     db_session.add(assoc)
     db_session.commit()
-    
+
     updated = repo.update(
-        original_citation.id,
-        project_id=project1.id,
-        title="Updated Title"
+        original_citation.id, project_id=project1.id, title="Updated Title"
     )
-    
+
     assert updated.id != original_citation.id
     assert updated.title == "Updated Title"
-    
-    project1_citations = project_repo.get_all_by_project(project1.id) 
+
+    project1_citations = project_repo.get_all_by_project(project1.id)
     assert len(project1_citations) == 1
     assert project1_citations[0].title == "Updated Title"
 
-    project2_citations = project_repo.get_all_by_project(project2.id)  
+    project2_citations = project_repo.get_all_by_project(project2.id)
     assert len(project2_citations) == 1
     assert project2_citations[0].title == "Shared Article"
+
 
 # Modifies citation in place when only one project uses it
 def test_update_citation_single_project_modifies_in_place(db_session):
     repo = CitationRepository(db_session)
-    
+
     project = Project(name="Single Project")
     db_session.add(project)
     db_session.commit()
     db_session.refresh(project)
-    
+
     citation = repo.create(
         project_id=project.id,
         type="book",
         title="Original Title",
         authors=["Original Author"],
-        year=2020
+        year=2020,
     )
-    
+
     original_id = citation.id
-    
+
     updated = repo.update(
-        citation.id,
-        project_id=project.id,
-        title="Modified Title",
-        year=2021
+        citation.id, project_id=project.id, title="Modified Title", year=2021
     )
-    
+
     assert updated.id == original_id
     assert updated.title == "Modified Title"
     assert updated.year == 2021
     assert "Original Author" in updated.authors
+
 
 # Tests update behavior when changing citation type
 def test_update_citation_changing_type_filters_fields(db_session):
@@ -638,7 +684,7 @@ def test_update_citation_changing_type_filters_fields(db_session):
         volume=10,
         issue="5",
         pages="100-120",
-        doi="10.1234/test"
+        doi="10.1234/test",
     )
 
     # Update to book type - article fields should be filtered out
@@ -647,7 +693,7 @@ def test_update_citation_changing_type_filters_fields(db_session):
         project_id=project.id,
         type="book",
         publisher="Book Publisher",
-        edition=2
+        edition=2,
     )
 
     # Verify type changed and book fields are set
@@ -661,6 +707,7 @@ def test_update_citation_changing_type_filters_fields(db_session):
     assert updated.issue is None
     assert updated.pages is None
     assert updated.doi is None
+
 
 # Tests merge_citation_data properly filters fields by type
 def test_merge_citation_data_filters_by_type(db_session):
@@ -681,15 +728,11 @@ def test_merge_citation_data_filters_by_type(db_session):
         year=2020,
         journal="Journal Name",
         volume=5,
-        pages="10-20"
+        pages="10-20",
     )
 
     # Test merge with type change to book
-    update_data = {
-        "type": "book",
-        "publisher": "Test Publisher",
-        "edition": 3
-    }
+    update_data = {"type": "book", "publisher": "Test Publisher", "edition": 3}
 
     merged = repo.merge_citation_data(citation, update_data)
 
@@ -702,6 +745,7 @@ def test_merge_citation_data_filters_by_type(db_session):
     assert merged["journal"] is None
     assert merged["volume"] is None
     assert merged["pages"] is None
+
 
 # Tests merge_citation_data converts authors list to JSON
 def test_merge_citation_data_converts_authors_list_to_json(db_session):
@@ -718,19 +762,19 @@ def test_merge_citation_data_converts_authors_list_to_json(db_session):
         type="book",
         title="Original Book",
         authors=["Original Author"],
-        year=2020
+        year=2020,
     )
 
     # Update with authors as list
-    update_data = {
-        "authors": ["New Author One", "New Author Two"]
-    }
+    update_data = {"authors": ["New Author One", "New Author Two"]}
 
     merged = repo.merge_citation_data(citation, update_data)
 
     # Verify authors converted to JSON
     import json
+
     assert merged["authors"] == json.dumps(["New Author One", "New Author Two"])
+
 
 # Tests updating citation with None values explicitly sets fields to None
 def test_update_citation_with_none_values_are_applied(db_session):
@@ -751,21 +795,17 @@ def test_update_citation_with_none_values_are_applied(db_session):
         year=2020,
         publisher="Publisher",
         edition=2,
-        place="New York"
+        place="New York",
     )
 
     # Update with None for edition and place
-    updated = repo.update(
-        citation.id,
-        project_id=project.id,
-        edition=None,
-        place=None
-    )
+    updated = repo.update(citation.id, project_id=project.id, edition=None, place=None)
 
     # The merge should apply None values
     # Note: This depends on implementation - current code applies None
     assert updated is not None
     assert updated.title == "Book with Edition"
+
 
 # Tests updating all possible citation fields in one operation
 def test_update_citation_all_fields_at_once(db_session):
@@ -783,7 +823,7 @@ def test_update_citation_all_fields_at_once(db_session):
         type="article",
         title="Original Title",
         authors=["Original Author"],
-        year=2020
+        year=2020,
     )
 
     # Update all article-valid fields at once
@@ -800,7 +840,7 @@ def test_update_citation_all_fields_at_once(db_session):
         volume=100,
         issue="12",
         pages="500-550",
-        doi="10.9999/new.doi"
+        doi="10.9999/new.doi",
     )
 
     assert updated.title == "Updated Title"
@@ -820,6 +860,7 @@ def test_update_citation_all_fields_at_once(db_session):
     assert updated.place is None  # Not used for articles
     assert updated.edition is None  # Not used for articles
 
+
 # =========================================================
 # OUT OF LAYER SCOPE TESTS (EXTRA)
 # These tests cover situations that, according to the app’s logic,
@@ -828,6 +869,7 @@ def test_update_citation_all_fields_at_once(db_session):
 # here to ensure that the repository behaves safely and consistently
 # when receiving unexpected or invalid data.
 # =========================================================
+
 
 def test_update_citation_with_invalid_field_is_ignored(db_session):
     repo = CitationRepository(db_session)
@@ -842,17 +884,16 @@ def test_update_citation_with_invalid_field_is_ignored(db_session):
         type="article",
         title="Valid Title",
         authors=["Author"],
-        year=2020
+        year=2020,
     )
 
     updated = repo.update(
-        citation.id,
-        project_id=project.id,
-        invalid_field="This should not be saved"
+        citation.id, project_id=project.id, invalid_field="This should not be saved"
     )
 
     assert updated.title == "Valid Title"
     assert not hasattr(updated, "invalid_field")
+
 
 def test_update_citation_with_authors_as_string(db_session):
     repo = CitationRepository(db_session)
@@ -867,18 +908,17 @@ def test_update_citation_with_authors_as_string(db_session):
         type="book",
         title="Book Title",
         authors=["Correct Author"],
-        year=2000
+        year=2000,
     )
 
     updated = repo.update(
-        citation.id,
-        project_id=project.id,
-        authors="Single Author String"
+        citation.id, project_id=project.id, authors="Single Author String"
     )
 
     # Repo stores it as raw string (not JSON list) –
     # this should never happen with proper validation
     assert updated.authors == "Single Author String"
+
 
 def test_update_citation_with_same_values_does_not_duplicate(db_session):
     repo = CitationRepository(db_session)
@@ -893,7 +933,7 @@ def test_update_citation_with_same_values_does_not_duplicate(db_session):
         type="article",
         title="Unchanged Title",
         authors=["Author A"],
-        year=2020
+        year=2020,
     )
 
     updated = repo.update(
@@ -901,11 +941,10 @@ def test_update_citation_with_same_values_does_not_duplicate(db_session):
         project_id=project.id,
         title="Unchanged Title",
         authors=["Author A"],
-        year=2020
+        year=2020,
     )
 
     # Repo returns same citation without duplication or deletion
     assert updated.id == citation.id
     assert updated.title == "Unchanged Title"
     assert "Author A" in updated.authors
-

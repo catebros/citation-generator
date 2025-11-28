@@ -2,11 +2,12 @@
 """
 Project repository for CRUD operations with orphan citation cleanup.
 """
-from sqlalchemy.orm import Session
-from models.project import Project
+from typing import Any, Dict, List, Optional
+
 from models.citation import Citation
+from models.project import Project
 from models.project_citation import ProjectCitation
-from typing import List, Dict, Any, Optional
+from sqlalchemy.orm import Session
 
 
 class ProjectRepository:
@@ -23,22 +24,22 @@ class ProjectRepository:
         self._db.commit()
         self._db.refresh(project)
         return project
-    
+
     def get_by_id(self, project_id: int) -> Optional[Project]:
         """Retrieve project by identifier."""
         return self._db.query(Project).filter(Project.id == project_id).first()
-    
+
     def get_all(self) -> List[Project]:
         """Retrieve all projects ordered by creation date (newest first)."""
         return self._db.query(Project).order_by(Project.created_at.desc()).all()
-    
+
     def update(self, project_id: int, **kwargs) -> Optional[Project]:
         """Update project attributes and return updated instance."""
         project = self.get_by_id(project_id)
 
         if not project:
             return None
-        
+
         # Update only non-None values and existing attributes
         for key, value in kwargs.items():
             if value is None:
@@ -49,7 +50,7 @@ class ProjectRepository:
 
         self._db.commit()
         self._db.refresh(project)
-        return project   
+        return project
 
     def get_all_by_project(self, project_id: int) -> List[Citation]:
         """Retrieve all citations for a project ordered by creation date."""
@@ -59,7 +60,7 @@ class ProjectRepository:
             .filter(ProjectCitation.project_id == project_id)
             .order_by(Citation.created_at.desc())
             .all()
-        )      
+        )
 
     def delete(self, project_id: int) -> bool:
         """Delete project and handle orphaned citations automatically."""
@@ -76,7 +77,9 @@ class ProjectRepository:
         )
 
         # Delete ProjectCitation associations for this project
-        self._db.query(ProjectCitation).filter(ProjectCitation.project_id == project_id).delete(synchronize_session=False)
+        self._db.query(ProjectCitation).filter(
+            ProjectCitation.project_id == project_id
+        ).delete(synchronize_session=False)
 
         # Check for orphaned citations and delete them
         for (citation_id,) in citations_to_check:
@@ -85,11 +88,11 @@ class ProjectRepository:
                 .filter(ProjectCitation.citation_id == citation_id)
                 .count()
             )
-            
+
             if remaining_assocs == 0:
-                self._db.query(Citation).filter(
-                    Citation.id == citation_id
-                ).delete(synchronize_session=False)
+                self._db.query(Citation).filter(Citation.id == citation_id).delete(
+                    synchronize_session=False
+                )
 
         # Finally delete the project
         self._db.delete(project)

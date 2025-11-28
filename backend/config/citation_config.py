@@ -1,6 +1,6 @@
 # backend/config/citation_config.py
-from typing import Dict, List
 import copy
+from typing import Dict, List
 
 
 class CitationFieldsConfig:
@@ -8,10 +8,11 @@ class CitationFieldsConfig:
     Singleton class for managing citation configuration.
     This ensures only one instance of the configuration exists throughout the application.
     """
+
     _instance = None
     _initialized = False
 
-    def __new__(cls) -> 'CitationFieldsConfig':
+    def __new__(cls) -> "CitationFieldsConfig":
         """
         Create a new instance only if one doesn't exist.
 
@@ -34,12 +35,46 @@ class CitationFieldsConfig:
         """
         if not self._initialized:
             self._required_for_citation_types = {
-                "book": ["type", "title", "authors", "year", "publisher", "place", "edition"],
-                "article": ["type", "title", "authors", "year", "journal", "volume", "issue", "pages", "doi"],
-                "website": ["type", "title", "authors", "year", "publisher", "url", "access_date"],
-                "report": ["type", "title", "authors", "year", "publisher", "url", "place"]
+                "book": [
+                    "type",
+                    "title",
+                    "authors",
+                    "year",
+                    "publisher",
+                    "place",
+                    "edition",
+                ],
+                "article": [
+                    "type",
+                    "title",
+                    "authors",
+                    "year",
+                    "journal",
+                    "volume",
+                    "issue",
+                    "pages",
+                    "doi",
+                ],
+                "website": [
+                    "type",
+                    "title",
+                    "authors",
+                    "year",
+                    "publisher",
+                    "url",
+                    "access_date",
+                ],
+                "report": [
+                    "type",
+                    "title",
+                    "authors",
+                    "year",
+                    "publisher",
+                    "url",
+                    "place",
+                ],
             }
-            
+
             CitationFieldsConfig._initialized = True
 
     def get_required_for_citation_types(self) -> Dict[str, List[str]]:
@@ -55,13 +90,13 @@ class CitationFieldsConfig:
     def get_required_fields(self, citation_type: str) -> List[str]:
         """
         Get required fields for a specific citation type.
-        
+
         Args:
             citation_type (str): The type of citation
-            
+
         Returns:
             List[str]: List of required fields for the citation type
-            
+
         Raises:
             KeyError: If citation type is not supported
         """

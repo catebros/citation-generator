@@ -1,6 +1,7 @@
 # backend/schemas/project_schemas.py
-from pydantic import BaseModel, Field
 from datetime import datetime
+
+from pydantic import BaseModel, Field
 
 # String length limits for validation
 MAX_PROJECT_NAME_LENGTH = 200
@@ -9,11 +10,17 @@ MAX_PROJECT_NAME_LENGTH = 200
 class ProjectBase(BaseModel):
     """Base schema for project validation."""
 
-    name: str = Field(..., min_length=1, max_length=MAX_PROJECT_NAME_LENGTH, description="Project name")
+    name: str = Field(
+        ...,
+        min_length=1,
+        max_length=MAX_PROJECT_NAME_LENGTH,
+        description="Project name",
+    )
 
 
 class ProjectCreate(ProjectBase):
     """Schema for creating a project."""
+
     pass
 
 

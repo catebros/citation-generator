@@ -1,13 +1,13 @@
-name: CI - Tests & Lint
+name: CI - Complete Pipeline
 
 on:
   push:
-    branches: [ main, develop ]
+    branches: [ '**' ]
   pull_request:
-    branches: [ main, develop ]
+    branches: [ '**' ]
 
 jobs:
-  backend-test:
+  01-tests:
     runs-on: ubuntu-latest
 
     services:
@@ -76,6 +76,179 @@ jobs:
         fail_ci_if_error: false
       env:
         CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+
+  02-code-format:
+    runs-on: ubuntu-latest
+    needs: 01-tests
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python 3.11
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+
+    - name: Cache pip packages
+      uses: actions/cache@v4
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+
+    - name: Check code formatting with Black
+      working-directory: ./backend
+      run: |
+        black --check . || (echo "Code formatting issues found. Run 'black .' to fix." && exit 1)
+
+    - name: Check import sorting with isort
+      working-directory: ./backend
+      run: |
+        isort --check-only . || (echo "Import sorting issues found. Run 'isort .' to fix." && exit 1)
+
+  03-linting:
+    runs-on: ubuntu-latest
+    needs: 02-code-format
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python 3.11
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+
+    - name: Cache pip packages
+      uses: actions/cache@v4
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+
+    - name: Run Flake8
+      working-directory: ./backend
+      run: |
+        flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+        flake8 . --count --max-complexity=10 --max-line-length=127 --statistics
+
+    - name: Run MyPy type checking
+      working-directory: ./backend
+      run: |
+        mypy . --ignore-missing-imports || echo "Type checking issues found"
+
+  04-security:
+    runs-on: ubuntu-latest
+    needs: 03-linting
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python 3.11
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+
+    - name: Install Bandit
+      run: |
+        python -m pip install --upgrade pip
+        pip install bandit
+
+    - name: Run Bandit security checks
+      working-directory: ./backend
+      run: |
+        bandit -r . -f json -o bandit-report.json || true
+        bandit -r . || echo "Security issues found. Review the report."
+
+    - name: Upload Bandit report
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: bandit-security-report
+        path: backend/bandit-report.json
+
+  05-build:
+    runs-on: ubuntu-latest
+    needs: 04-security
+
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: citation_generator_db
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python 3.11
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+
+    - name: Cache pip packages
+      uses: actions/cache@v4
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
+
+    - name: Install build dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install build wheel setuptools
+        pip install -r requirements.txt
+
+    - name: Verify imports and module structure
+      working-directory: ./backend
+      run: |
+        python -c "import sys; sys.path.insert(0, '.'); import main; print('Main module imports successfully')"
+
+    - name: Test database migrations
+      env:
+        DATABASE_URL: postgresql://postgres:postgres@localhost:5432/citation_generator_db
+      working-directory: ./backend
+      run: |
+        alembic upgrade head
+        alembic downgrade -1
+        alembic upgrade head
+
+    - name: Build application package
+      run: |
+        echo "Build step completed - application structure verified"
+
+  06-complete:
+    runs-on: ubuntu-latest
+    needs: [01-tests, 02-code-format, 03-linting, 04-security, 05-build]
+
+    steps:
+    - name: All checks passed
+      run: |
+        echo "Full pipeline complete!"
 
   frontend-test:
     runs-on: ubuntu-latest

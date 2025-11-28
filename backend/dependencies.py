@@ -12,11 +12,12 @@ These functions are used with FastAPI's Depends() to inject services
 into route handlers, ensuring proper resource management and separation of concerns.
 """
 
-from fastapi import Depends
-from sqlalchemy.orm import Session
 from db.database import get_db
+from fastapi import Depends
 from services.citation_service import CitationService
 from services.project_service import ProjectService
+from sqlalchemy.orm import Session
+
 
 def get_citation_service(db: Session = Depends(get_db)) -> CitationService:
     """
@@ -32,6 +33,7 @@ def get_citation_service(db: Session = Depends(get_db)) -> CitationService:
         CitationService: Configured citation service instance with database access
     """
     return CitationService(db)
+
 
 def get_project_service(db: Session = Depends(get_db)) -> ProjectService:
     """

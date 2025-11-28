@@ -2,27 +2,24 @@
 """
 Test suite for main FastAPI application endpoints.
 
-This module tests the core application endpoints and functionality:
+This module tests the core application endpoints:
 - Root endpoint (/) - API status and basic info
 - Health check endpoint (/health) - System health verification
 - API documentation endpoints (/docs, /redoc)
 - Error handling for invalid routes
-- Global exception handler behavior
 
-These tests verify the basic API infrastructure is working correctly
-before testing specific features like citations and projects.
+These tests verify basic API infrastructure is working.
 """
-import pytest
 from fastapi.testclient import TestClient
-from unittest.mock import patch, MagicMock
 from main import app
 
 client = TestClient(app)
 
 # ========== ROOT ENDPOINT TESTS ==========
 
+
 def test_root_endpoint():
-    """Test GET / returns 200 and contains 'Citation Generator API is running'."""
+    """Test GET / returns 200 and expected message."""
     response = client.get("/")
     assert response.status_code == 200
     data = response.json()
@@ -30,7 +27,9 @@ def test_root_endpoint():
     assert data["status"] == "healthy"
     assert data["version"] == "1.0.0"
 
+
 # ========== HEALTH CHECK TESTS ==========
+
 
 def test_health_check():
     """Test GET /health returns 200 and JSON includes expected fields."""
@@ -47,31 +46,37 @@ def test_health_check():
     assert "website" in data["citation_types"]
     assert "report" in data["citation_types"]
 
+
 # ========== DOCUMENTATION ENDPOINT TESTS ==========
+
 
 def test_openapi_docs():
     """Test OpenAPI docs (/docs) load without error."""
     response = client.get("/docs")
     assert response.status_code == 200
 
+
 def test_redoc_docs():
     """Test ReDoc (/redoc) loads without error."""
     response = client.get("/redoc")
     assert response.status_code == 200
 
+
 # ========== ERROR HANDLING TESTS ==========
+
 
 def test_invalid_endpoint():
     """Test non-existent endpoint returns 404."""
     response = client.get("/invalid-endpoint")
     assert response.status_code == 404
 
+
 def test_exception_handling():
     """Test basic exception handling."""
-    # Este test verifica que el framework maneja excepciones apropiadamente
-    # without needing to create dynamic test endpoints
+    # Verify framework handles exceptions appropriately
     response = client.get("/nonexistent-route")
     assert response.status_code == 404
+
 
 def test_global_exception_handler():
     """Test basic exception handling in the application."""

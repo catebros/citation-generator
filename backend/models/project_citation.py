@@ -20,8 +20,8 @@ Cascade behavior:
 - Citations themselves are NOT deleted when removed from a project
 - This is a pure linking table with no independent data
 """
-from sqlalchemy import Column, Integer, ForeignKey
 from models.base import Base
+from sqlalchemy import Column, ForeignKey, Integer
 
 
 class ProjectCitation(Base):
@@ -63,6 +63,7 @@ class ProjectCitation(Base):
         - Managed through project_service and citation_service operations
         - Queried to get all citations in a project or all projects containing a citation
     """
+
     __tablename__ = "project_citations"
 
     # ========== COMPOSITE PRIMARY KEY & FOREIGN KEYS ==========

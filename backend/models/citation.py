@@ -21,9 +21,10 @@ Database schema constraints:
 - Optional fields: All publication details, validated by citation_validator
 - Automatic timestamp: created_at (UTC timezone)
 """
-from sqlalchemy import Column, Integer, String, Text, DateTime
 from datetime import datetime, timezone
+
 from models.base import Base
+from sqlalchemy import Column, DateTime, Integer, String, Text
 
 
 class Citation(Base):
@@ -70,6 +71,7 @@ class Citation(Base):
         - Type-specific field requirements enforced by citation_validator
         - Formatted by APAFormatter or MLAFormatter for display
     """
+
     __tablename__ = "citations"
 
     # ========== PRIMARY KEY ==========
@@ -78,7 +80,9 @@ class Citation(Base):
 
     # ========== REQUIRED FIELDS ==========
     # These fields are required for all citation types
-    type = Column(String, nullable=False)  # Citation type: 'book', 'article', 'website', 'report'
+    type = Column(
+        String, nullable=False
+    )  # Citation type: 'book', 'article', 'website', 'report'
     title = Column(String, nullable=False)  # Title of the cited work
     authors = Column(Text, nullable=False)  # JSON array of author names stored as text
     year = Column(Integer, nullable=True)  # Publication year (None for undated works)
@@ -89,7 +93,9 @@ class Citation(Base):
     publisher = Column(String, nullable=True)  # Publisher/Institution/Website name
     journal = Column(String, nullable=True)  # Journal name (for articles)
     volume = Column(Integer, nullable=True)  # Volume number
-    issue = Column(String, nullable=True)  # Issue number (stored as string to support formats like "3-4")
+    issue = Column(
+        String, nullable=True
+    )  # Issue number (stored as string to support formats like "3-4")
     pages = Column(String, nullable=True)  # Page range (e.g., "123-145")
     doi = Column(String, nullable=True)  # Digital Object Identifier (for articles)
     url = Column(String, nullable=True)  # Web URL (for websites and online resources)
@@ -99,4 +105,6 @@ class Citation(Base):
 
     # ========== METADATA ==========
     # Automatically managed timestamp fields
-    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))  # Creation timestamp (UTC)
+    created_at = Column(
+        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
+    )  # Creation timestamp (UTC)

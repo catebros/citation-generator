@@ -12,14 +12,14 @@ This module initializes and configures the FastAPI application with:
 The application provides RESTful endpoints for managing bibliographic citations
 and projects, with support for APA and MLA citation formats.
 """
-from fastapi import FastAPI, status
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
-from typing import Dict, Any
-import uvicorn
+from typing import Any, Dict
+
+import uvicorn  # noqa: F401 - used in __main__ block
 from db.database import engine
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from models.base import Base
-from routers import project_router, citation_router
+from routers import citation_router, project_router
 
 # Create database tables
 Base.metadata.create_all(bind=engine)
@@ -30,7 +30,7 @@ app = FastAPI(
     description="API for managing projects and generating bibliographic citations in APA and MLA formats",
     version="1.0.0",
     docs_url="/docs",
-    redoc_url="/redoc"
+    redoc_url="/redoc",
 )
 
 # Configure CORS middleware for frontend connectivity
@@ -48,6 +48,7 @@ app.include_router(citation_router.router)
 
 # ========== HEALTH CHECK ENDPOINTS ==========
 
+
 @app.get("/", tags=["Health"])
 def read_root() -> Dict[str, Any]:
     """
@@ -59,8 +60,9 @@ def read_root() -> Dict[str, Any]:
     return {
         "message": "Citation Generator API is running",
         "status": "healthy",
-        "version": "1.0.0"
+        "version": "1.0.0",
     }
+
 
 @app.get("/health", tags=["Health"])
 def health_check() -> Dict[str, Any]:
@@ -79,16 +81,11 @@ def health_check() -> Dict[str, Any]:
         "database": "connected",
         "api_version": "1.0.0",
         "supported_formats": ["APA", "MLA"],
-        "citation_types": ["article", "book", "website", "report"]
+        "citation_types": ["article", "book", "website", "report"],
     }
+
 
 # ========== APPLICATION ENTRY POINT ==========
 
 if __name__ == "__main__":
-    uvicorn.run(
-        "main:app",
-        host="127.0.0.1", 
-        port=8000,
-        reload=True,
-        log_level="info"
-    )
+    uvicorn.run("main:app", host="127.0.0.1", port=8000, reload=True, log_level="info")

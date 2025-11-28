@@ -21,9 +21,10 @@ Key features:
 - Projects can generate bibliographies in APA or MLA format
 - Project names are validated for length and format by project_validator
 """
-from sqlalchemy import Column, Integer, String, DateTime
 from datetime import datetime, timezone
+
 from models.base import Base
+from sqlalchemy import Column, DateTime, Integer, String
 
 
 class Project(Base):
@@ -55,6 +56,7 @@ class Project(Base):
         - Projects can generate formatted bibliographies via project_service
         - Citations are added to projects through citation_service.create_citation()
     """
+
     __tablename__ = "projects"
 
     # ========== PRIMARY KEY ==========
@@ -67,4 +69,6 @@ class Project(Base):
 
     # ========== METADATA ==========
     # Automatically managed timestamp fields
-    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))  # Creation timestamp (UTC)
+    created_at = Column(
+        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
+    )  # Creation timestamp (UTC)

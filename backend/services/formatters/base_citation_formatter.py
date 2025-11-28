@@ -1,13 +1,16 @@
 # backend/services/formatters/base_citation_formatter.py
+import json
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, List
-import json
-from models.citation import Citation
+
+if TYPE_CHECKING:
+    from models.citation import Citation
+
 
 class BaseCitationFormatter(ABC):
     """Abstract base class for citation formatters implementing style-specific formatting."""
 
-    def __init__(self, citation: 'Citation'):
+    def __init__(self, citation: "Citation"):
         """Initialize formatter with citation data."""
         self._citation = citation
 
@@ -58,11 +61,11 @@ class BaseCitationFormatter(ABC):
         # Validate edition type and convert if necessary
         if edition is None or edition == 1:
             return ""  # Don't show first edition
-        
+
         # Handle special cases for numbers ending in 11, 12, 13 (always "th")
         if 10 <= edition % 100 <= 13:
             return f"{edition}th ed."
-        
+
         # Handle based on last digit
         last_digit = edition % 10
         if last_digit == 1:

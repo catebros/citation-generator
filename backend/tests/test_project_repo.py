@@ -35,34 +35,31 @@ Complex deletion scenarios tested:
 
 All tests use in-memory SQLite database for fast, isolated execution.
 """
-import pytest
-import time
-import tempfile
 import os
+import tempfile
+import time
+
+import pytest
+from models.base import Base
+from models.project_citation import ProjectCitation
+from repositories.citation_repo import CitationRepository
+from repositories.project_repo import ProjectRepository
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from models.base import Base
-from models.project import Project
-from models.citation import Citation
-from models.project_citation import ProjectCitation
-from repositories.project_repo import ProjectRepository
-from repositories.citation_repo import CitationRepository
+
 
 @pytest.fixture(scope="function")
 def db_session():
     # Create a temporary database file
     fd, db_path = tempfile.mkstemp(suffix=".db")
     os.close(fd)
-    
+
     db_url = f"sqlite:///{db_path}"
     engine = create_engine(
-        db_url,
-        connect_args={"check_same_thread": False},
-        echo=False
+        db_url, connect_args={"check_same_thread": False}, echo=False
     )
     TestingSessionLocal = sessionmaker(
-        bind=engine,
-        expire_on_commit=False  # Keep object attributes after commit
+        bind=engine, expire_on_commit=False  # Keep object attributes after commit
     )
     Base.metadata.create_all(engine)
     db = TestingSessionLocal()
@@ -73,6 +70,7 @@ def db_session():
         engine.dispose()
         os.unlink(db_path)  # Clean up temp file
 
+
 # TEST FOR CREATE
 # Creates a new project and verifies it has an ID and correct name
 def test_create_project(db_session):
@@ -81,6 +79,7 @@ def test_create_project(db_session):
 
     assert project.id is not None
     assert project.name == "AI Thesis"
+
 
 # TEST FOR GET BY ID
 # Retrieves a project by its ID and verifies all attributes match
@@ -93,32 +92,35 @@ def test_get_project_by_id(db_session):
     assert fetched.id == created.id
     assert fetched.name == "ML Project"
 
+
 # Returns None when project ID doesn't exist
 def test_get_project_by_id_not_found(db_session):
     repo = ProjectRepository(db_session)
     fetched = repo.get_by_id(999)
     assert fetched is None
 
+
 # TEST FOR GET ALL
 # Returns empty list when no projects exist and ensures proper ordering by created_at desc
 def test_get_all_projects(db_session):
     repo = ProjectRepository(db_session)
-    
+
     # Create projects with small delay to ensure different timestamps
-    project1 = repo.create({"name": "Project 1"})
+    repo.create({"name": "Project 1"})
     time.sleep(0.001)
-    project2 = repo.create({"name": "Project 2"})
+    repo.create({"name": "Project 2"})
 
     projects = repo.get_all()
     assert len(projects) == 2
-    
+
     # Verify projects are ordered by created_at desc (newest first)
     assert projects[0].name == "Project 2"  # Most recent
     assert projects[1].name == "Project 1"  # Oldest
-    
+
     names = [p.name for p in projects]
     assert "Project 1" in names
     assert "Project 2" in names
+
 
 # Returns empty list when no projects exist
 def test_get_all_projects_empty(db_session):
@@ -126,7 +128,8 @@ def test_get_all_projects_empty(db_session):
     projects = repo.get_all()
     assert projects == []
 
-# TEST UPDATE 
+
+# TEST UPDATE
 # Updates project name and ignores None values to preserve existing data
 def test_update_project_name(db_session):
     repo = ProjectRepository(db_session)
@@ -136,32 +139,36 @@ def test_update_project_name(db_session):
     assert updated is not None
     assert updated.name == "Updated Project"
 
+
 # Returns None when trying to update non-existent project
 def test_update_project_not_found(db_session):
     repo = ProjectRepository(db_session)
     result = repo.update(999, name="Doesn't exist")
     assert result is None
 
+
 # TEST DELETE
 # Deletes project with no citations successfully
 def test_delete_project_with_no_citations(db_session):
     repo = ProjectRepository(db_session)
-    
+
     project = repo.create({"name": "Empty Project"})
     project_id = project.id
-    
+
     result = repo.delete(project_id)
-    
+
     assert result is True
     assert repo.get_by_id(project_id) is None
+
 
 # Returns False when trying to delete non-existent project
 def test_delete_project_not_found(db_session):
     repo = ProjectRepository(db_session)
-    
+
     result = repo.delete(999)
-    
+
     assert result is False
+
 
 # Deletes project and its unique citations (orphan cleanup)
 def test_delete_project_with_unique_citations(db_session):
@@ -169,40 +176,41 @@ def test_delete_project_with_unique_citations(db_session):
     citation_repo = CitationRepository(db_session)
 
     project = project_repo.create({"name": "Project with Unique Citations"})
-    
+
     # Create unique citations for this project
     citation1 = citation_repo.create(
         project_id=project.id,
         type="book",
         title="Unique Book 1",
         authors=["Author A"],
-        year=2020
+        year=2020,
     )
     citation2 = citation_repo.create(
         project_id=project.id,
-        type="article", 
+        type="article",
         title="Unique Article 1",
         authors=["Author B"],
-        year=2021
+        year=2021,
     )
-    
+
     citation1_id = citation1.id
     citation2_id = citation2.id
-    
+
     result = project_repo.delete(project.id)
-    
+
     assert result is True
     assert project_repo.get_by_id(project.id) is None
-    
+
     assert citation_repo.get_by_id(citation1_id) is None
     assert citation_repo.get_by_id(citation2_id) is None
-    
+
     remaining_assocs = (
         db_session.query(ProjectCitation)
         .filter(ProjectCitation.project_id == project.id)
         .count()
     )
     assert remaining_assocs == 0
+
 
 # Deletes project but preserves shared citations used by other projects
 def test_delete_project_with_shared_citations(db_session):
@@ -211,41 +219,42 @@ def test_delete_project_with_shared_citations(db_session):
 
     project1 = project_repo.create({"name": "Project 1 - Shared"})
     project2 = project_repo.create({"name": "Project 2 - Shared"})
-    
+
     shared_citation = citation_repo.create(
         project_id=project1.id,
         type="book",
         title="Shared Book",
         authors=["Shared Author"],
-        year=2020
+        year=2020,
     )
 
     citation_repo.create(
         project_id=project2.id,
         type="book",
-        title="Shared Book", 
+        title="Shared Book",
         authors=["Shared Author"],
-        year=2020
+        year=2020,
     )
-    
+
     citation_id = shared_citation.id
-    
+
     result = project_repo.delete(project1.id)
-    
+
     assert result is True
     assert project_repo.get_by_id(project1.id) is None
-    
+
     assert citation_repo.get_by_id(citation_id) is not None
-    
+
     project2_citations = project_repo.get_all_by_project(project2.id)
     assert len(project2_citations) == 1
     assert project2_citations[0].id == citation_id
+
 
 # Deletes project with mixed unique and shared citations
 def test_delete_project_mixed_citations(db_session):
     project_repo = ProjectRepository(db_session)
     citation_repo = CitationRepository(db_session)
-    
+
     project_to_delete = project_repo.create({"name": "Project to Delete"})
     other_project = project_repo.create({"name": "Other Project"})
 
@@ -254,30 +263,30 @@ def test_delete_project_mixed_citations(db_session):
         type="book",
         title="Unique Book",
         authors=["Unique Author"],
-        year=2020
+        year=2020,
     )
-    
+
     shared_citation = citation_repo.create(
         project_id=project_to_delete.id,
         type="article",
-        title="Shared Article", 
+        title="Shared Article",
         authors=["Shared Author"],
-        year=2021
+        year=2021,
     )
-    
+
     citation_repo.create(
         project_id=other_project.id,
         type="article",
         title="Shared Article",
         authors=["Shared Author"],
-        year=2021
+        year=2021,
     )
-    
+
     unique_id = unique_citation.id
     shared_id = shared_citation.id
 
     result = project_repo.delete(project_to_delete.id)
-    
+
     assert result is True
     assert project_repo.get_by_id(project_to_delete.id) is None
     assert citation_repo.get_by_id(unique_id) is None
@@ -286,21 +295,22 @@ def test_delete_project_mixed_citations(db_session):
     assert len(other_citations) == 1
     assert other_citations[0].id == shared_id
 
+
 # Verifies CASCADE integrity for ProjectCitation associations
 def test_delete_project_cascade_integrity(db_session):
     project_repo = ProjectRepository(db_session)
     citation_repo = CitationRepository(db_session)
 
     project = project_repo.create({"name": "Cascade Test Project"})
-    
-    citation = citation_repo.create(
+
+    citation_repo.create(
         project_id=project.id,
         type="article",
         title="Test Citation",
         authors=["Test Author"],
-        year=2020
+        year=2020,
     )
-    
+
     assoc_before = (
         db_session.query(ProjectCitation)
         .filter(ProjectCitation.project_id == project.id)
@@ -309,9 +319,9 @@ def test_delete_project_cascade_integrity(db_session):
     assert assoc_before == 1
 
     result = project_repo.delete(project.id)
-    
+
     assert result is True
-    
+
     assoc_after = (
         db_session.query(ProjectCitation)
         .filter(ProjectCitation.project_id == project.id)
@@ -319,13 +329,14 @@ def test_delete_project_cascade_integrity(db_session):
     )
     assert assoc_after == 0
 
+
 # Tests deletion performance with multiple citations
 def test_delete_project_multiple_citations_performance(db_session):
     project_repo = ProjectRepository(db_session)
     citation_repo = CitationRepository(db_session)
 
     project = project_repo.create({"name": "Performance Test Project"})
-    
+
     citations = []
     for i in range(10):
         citation = citation_repo.create(
@@ -333,18 +344,18 @@ def test_delete_project_multiple_citations_performance(db_session):
             type="article",
             title=f"Test Article {i}",
             authors=[f"Author {i}"],
-            year=2020 + i
+            year=2020 + i,
         )
         citations.append(citation.id)
-    
+
     result = project_repo.delete(project.id)
-    
+
     assert result is True
     assert project_repo.get_by_id(project.id) is None
 
     for citation_id in citations:
         assert citation_repo.get_by_id(citation_id) is None
-    
+
     remaining_assocs = (
         db_session.query(ProjectCitation)
         .filter(ProjectCitation.project_id == project.id)
@@ -352,97 +363,107 @@ def test_delete_project_multiple_citations_performance(db_session):
     )
     assert remaining_assocs == 0
 
+
 # TEST GET BY NAME
 # Returns project when it exists with the given name
 def test_get_by_name_existing(db_session):
     repo = ProjectRepository(db_session)
     created = repo.create({"name": "Machine Learning Project"})
-    
+
     fetched = repo.get_by_name("Machine Learning Project")
-    
+
     assert fetched is not None
     assert fetched.id == created.id
     assert fetched.name == "Machine Learning Project"
 
+
 # Returns None when project with given name doesn't exist
 def test_get_by_name_not_found(db_session):
     repo = ProjectRepository(db_session)
-    
+
     fetched = repo.get_by_name("Non-existent Project")
-    
+
     assert fetched is None
+
 
 # CASE-INSENSITIVE TESTS FOR GET BY NAME
 def test_get_by_name_case_insensitive_uppercase(db_session):
     """Test that get_by_name finds projects with different case (uppercase)."""
     repo = ProjectRepository(db_session)
     created = repo.create({"name": "Machine Learning Project"})
-    
+
     # Search with uppercase
     fetched = repo.get_by_name("MACHINE LEARNING PROJECT")
-    
+
     assert fetched is not None
     assert fetched.id == created.id
     assert fetched.name == "Machine Learning Project"  # Original case preserved
+
 
 def test_get_by_name_case_insensitive_lowercase(db_session):
     """Test that get_by_name finds projects with different case (lowercase)."""
     repo = ProjectRepository(db_session)
     created = repo.create({"name": "Data Science Research"})
-    
+
     # Search with lowercase
     fetched = repo.get_by_name("data science research")
-    
+
     assert fetched is not None
     assert fetched.id == created.id
     assert fetched.name == "Data Science Research"  # Original case preserved
+
 
 def test_get_by_name_case_insensitive_mixed_case(db_session):
     """Test that get_by_name finds projects with mixed case patterns."""
     repo = ProjectRepository(db_session)
     created = repo.create({"name": "Neural Networks Study"})
-    
+
     # Search with mixed case
     fetched = repo.get_by_name("nEuRaL NeTwOrKs StUdY")
-    
+
     assert fetched is not None
     assert fetched.id == created.id
     assert fetched.name == "Neural Networks Study"  # Original case preserved
 
+
 def test_get_by_name_case_insensitive_no_false_positive(db_session):
     """Test that case-insensitive search doesn't create false positives."""
     repo = ProjectRepository(db_session)
-    
+
     # Create projects with similar but different names
     project1 = repo.create({"name": "AI Research"})
     project2 = repo.create({"name": "AI Development"})
-    
+
     # Search for exact match should return correct project
     fetched1 = repo.get_by_name("ai research")
     fetched2 = repo.get_by_name("AI DEVELOPMENT")
-    
+
     assert fetched1 is not None
     assert fetched1.id == project1.id
     assert fetched1.name == "AI Research"
-    
-    assert fetched2 is not None  
+
+    assert fetched2 is not None
     assert fetched2.id == project2.id
     assert fetched2.name == "AI Development"
-    
+
     # Should not confuse them
     assert fetched1.id != fetched2.id
+
 
 def test_get_by_name_case_insensitive_with_special_characters(db_session):
     """Test case-insensitive search with special characters and spaces."""
     repo = ProjectRepository(db_session)
     created = repo.create({"name": "Project-Name_With Special.Characters"})
-    
+
     # Search with different case
     fetched = repo.get_by_name("PROJECT-NAME_WITH SPECIAL.CHARACTERS")
-    
+
     assert fetched is not None
     assert fetched.id == created.id
-    assert fetched.name == "Project-Name_With Special.Characters"  # Original case preserved
+    assert (
+        fetched.name == "Project-Name_With Special.Characters"
+    )  # Original case preserved
+
 
 # TEST GET ALL BY PROJECT
 # Returns citations ordered by created_at desc for a specific project
@@ -453,33 +474,34 @@ def test_get_all_by_project(db_session):
     project = project_repo.create({"name": "Thesis on AI"})
 
     # Create citations with delay to ensure different timestamps
-    citation1 = citation_repo.create(
+    citation_repo.create(
         project_id=project.id,
         type="book",
         title="AI Foundations",
         authors=["Alan Turing"],
-        year=1950
+        year=1950,
     )
     time.sleep(0.001)
-    citation2 = citation_repo.create(
+    citation_repo.create(
         project_id=project.id,
         type="article",
         title="Neural Nets",
         authors=["Geoff Hinton"],
-        year=1986
+        year=1986,
     )
 
     results = project_repo.get_all_by_project(project.id)
 
     assert len(results) == 2
-    
+
     # Verify ordering by created_at desc (newest first)
     assert results[0].title == "Neural Nets"  # Most recent
     assert results[1].title == "AI Foundations"  # Oldest
-    
+
     titles = [c.title for c in results]
     assert "AI Foundations" in titles
     assert "Neural Nets" in titles
+
 
 # Returns empty list when project has no citations
 def test_get_all_by_project_empty(db_session):
@@ -489,6 +511,7 @@ def test_get_all_by_project_empty(db_session):
     results = project_repo.get_all_by_project(project.id)
 
     assert results == []
+
 
 # Returns empty list when project doesn't exist
 def test_get_all_by_project_nonexistent_project(db_session):
@@ -507,6 +530,7 @@ def test_get_all_by_project_nonexistent_project(db_session):
 # when receiving unexpected or invalid data.
 # =========================================================
 
+
 def test_update_project_with_invalid_field_is_ignored(db_session):
     repo = ProjectRepository(db_session)
     project = repo.create({"name": "Valid Project"})
@@ -515,6 +539,7 @@ def test_update_project_with_invalid_field_is_ignored(db_session):
     assert updated.id == project.id
     assert updated.name == "Valid Project"
     assert not hasattr(updated, "invalid_field")
+
 
 def test_update_project_with_none_value_does_not_overwrite(db_session):
     repo = ProjectRepository(db_session)
@@ -526,6 +551,7 @@ def test_update_project_with_none_value_does_not_overwrite(db_session):
 
 
 # ADDITIONAL COMPREHENSIVE TESTS
+
 
 def test_update_project_with_empty_string_name(db_session):
     """Test updating project with empty string name."""
@@ -546,7 +572,8 @@ def test_create_project_and_verify_timestamp(db_session):
 
     assert project.created_at is not None
     # Verify timestamp is recent (within last minute)
-    from datetime import datetime, UTC, timedelta, timezone
+    from datetime import UTC, datetime, timedelta, timezone
+
     now = datetime.now(UTC)
 
     # SQLite may return offset-naive datetime, so make it timezone-aware if needed
@@ -564,6 +591,7 @@ def test_get_all_projects_ordering_explicit(db_session):
 
     # Create multiple projects with small delays
     import time
+
     project1 = repo.create({"name": "First Project"})
     time.sleep(0.002)
     project2 = repo.create({"name": "Second Project"})
@@ -593,12 +621,13 @@ def test_get_all_by_project_ordering_explicit(db_session):
 
     # Create multiple citations with delays
     import time
+
     citation1 = citation_repo.create(
         project_id=project.id,
         type="book",
         title="First Book",
         authors=["Author A"],
-        year=2020
+        year=2020,
     )
     time.sleep(0.002)
     citation2 = citation_repo.create(
@@ -606,7 +635,7 @@ def test_get_all_by_project_ordering_explicit(db_session):
         type="article",
         title="Second Article",
         authors=["Author B"],
-        year=2021
+        year=2021,
     )
     time.sleep(0.002)
     citation3 = citation_repo.create(
@@ -616,7 +645,7 @@ def test_get_all_by_project_ordering_explicit(db_session):
         authors=["Author C"],
         year=2022,
         publisher="Web Publisher",
-        url="https://example.com"
+        url="https://example.com",
     )
 
     citations = project_repo.get_all_by_project(project.id)
@@ -656,8 +685,8 @@ def test_get_by_name_exact_match_returns_correct_project(db_session):
     repo = ProjectRepository(db_session)
 
     project1 = repo.create({"name": "AI Research"})
-    project2 = repo.create({"name": "AI Research Project"})
-    project3 = repo.create({"name": "Machine Learning"})
+    repo.create({"name": "AI Research Project"})
+    repo.create({"name": "Machine Learning"})
 
     # Get by exact name
     found = repo.get_by_name("AI Research")
@@ -739,22 +768,22 @@ def test_get_all_by_project_with_shared_citations(db_session):
     project2 = project_repo.create({"name": "Project 2"})
 
     # Create unique citation for project 1
-    unique_citation = citation_repo.create(
+    citation_repo.create(
         project_id=project1.id,
         type="book",
         title="Unique to Project 1",
         authors=["Author A"],
-        year=2020
+        year=2020,
     )
 
     # Create shared citation
-    shared_citation = citation_repo.create(
+    citation_repo.create(
         project_id=project1.id,
         type="article",
         title="Shared Citation",
         authors=["Author B"],
         year=2021,
-        journal="Journal"
+        journal="Journal",
     )
 
     # Add shared citation to project 2
@@ -764,7 +793,7 @@ def test_get_all_by_project_with_shared_citations(db_session):
         title="Shared Citation",
         authors=["Author B"],
         year=2021,
-        journal="Journal"
+        journal="Journal",
     )
 
     # Get citations for project 1

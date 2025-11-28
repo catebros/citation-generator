@@ -12,7 +12,6 @@ definitions and generate the corresponding database schema.
 """
 from sqlalchemy.orm import declarative_base
 
-
 # Base class inherited by all database models in this application
 # All tables defined in models/ inherit from this to gain ORM functionality
 Base = declarative_base()
