@@ -7,7 +7,7 @@ on:
     branches: [ '**' ]
 
 jobs:
-  01-tests:
+  tests:
     runs-on: ubuntu-latest
 
     services:
@@ -77,9 +77,9 @@ jobs:
       env:
         CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 
-  02-code-format:
+  code-format:
     runs-on: ubuntu-latest
-    needs: 01-tests
+    needs: tests
 
     steps:
     - name: Checkout code
@@ -113,9 +113,9 @@ jobs:
       run: |
         isort --check-only . || (echo "Import sorting issues found. Run 'isort .' to fix." && exit 1)
 
-  03-linting:
+  linting:
     runs-on: ubuntu-latest
-    needs: 02-code-format
+    needs: code-format
 
     steps:
     - name: Checkout code
@@ -150,9 +150,9 @@ jobs:
       run: |
         mypy . --ignore-missing-imports || echo "Type checking issues found"
 
-  04-security:
+  security:
     runs-on: ubuntu-latest
-    needs: 03-linting
+    needs: linting
 
     steps:
     - name: Checkout code
@@ -181,9 +181,9 @@ jobs:
         name: bandit-security-report
         path: backend/bandit-report.json
 
-  05-build:
+  build:
     runs-on: ubuntu-latest
-    needs: 04-security
+    needs: security
 
     services:
       postgres:
@@ -241,9 +241,9 @@ jobs:
       run: |
         echo "Build step completed - application structure verified"
 
-  06-complete:
+  complete:
     runs-on: ubuntu-latest
-    needs: [01-tests, 02-code-format, 03-linting, 04-security, 05-build]
+    needs: [tests, code-format, linting, security, build]
 
     steps:
     - name: All checks passed
