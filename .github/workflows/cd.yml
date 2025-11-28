@@ -157,12 +157,28 @@ jobs:
           exit 1
         fi
 
-    - name: Configure Backend Web App Settings
+    - name: Get Frontend and Backend URLs
+      id: get-urls
       env:
         AZURE_RESOURCE_GROUP: ${{ secrets.AZURE_RESOURCE_GROUP }}
         AZURE_WEBAPP_BACKEND: ${{ secrets.AZURE_WEBAPP_BACKEND }}
         AZURE_WEBAPP_FRONTEND: ${{ secrets.AZURE_WEBAPP_FRONTEND }}
+      run: |
+        set -euo pipefail
+        BACKEND_HOST=$(az webapp show --name "$AZURE_WEBAPP_BACKEND" --resource-group "$AZURE_RESOURCE_GROUP" --query defaultHostName -o tsv)
+        FRONTEND_HOST=$(az webapp show --name "$AZURE_WEBAPP_FRONTEND" --resource-group "$AZURE_RESOURCE_GROUP" --query defaultHostName -o tsv)
+        echo "BACKEND_URL=https://${BACKEND_HOST}" >> $GITHUB_OUTPUT
+        echo "FRONTEND_URL=https://${FRONTEND_HOST}" >> $GITHUB_OUTPUT
+        echo "Backend URL: https://${BACKEND_HOST}"
+        echo "Frontend URL: https://${FRONTEND_HOST}"
+
+    - name: Configure Backend Web App Settings
+      env:
+        AZURE_RESOURCE_GROUP: ${{ secrets.AZURE_RESOURCE_GROUP }}
+        AZURE_WEBAPP_BACKEND: ${{ secrets.AZURE_WEBAPP_BACKEND }}
         DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        FRONTEND_URL: ${{ steps.get-urls.outputs.FRONTEND_URL }}
+        BACKEND_URL: ${{ steps.get-urls.outputs.BACKEND_URL }}
       run: |
         set -euo pipefail
         echo "Configuring backend web app settings..."
@@ -171,7 +187,7 @@ jobs:
           --name "$AZURE_WEBAPP_BACKEND" \
           --settings \
             "DATABASE_URL=$DATABASE_URL" \
-            "ALLOWED_ORIGINS=https://$AZURE_WEBAPP_FRONTEND.azurewebsites.net,https://$AZURE_WEBAPP_BACKEND.azurewebsites.net" \
+            "ALLOWED_ORIGINS=$FRONTEND_URL,$BACKEND_URL" \
             "WEBSITES_PORT=8000" \
             "ENVIRONMENT=production" \
             "DOCKER_ENABLE_CI=true"
