@@ -260,12 +260,55 @@ class CitationUpdate(BaseModel):
     place: Optional[str] = Field(None, min_length=1, max_length=MAX_PLACE_LENGTH)
     edition: Optional[int] = Field(None, gt=0)
 
-    # Reuse validators from CitationBase
-    validate_type = field_validator("type")(CitationBase.normalize_type)
-    validate_authors = field_validator("authors")(CitationBase.validate_authors)
-    validate_year_max = field_validator("year")(CitationBase.validate_year_max)
-    validate_doi_format = field_validator("doi")(CitationBase.validate_doi_format)
-    validate_pages_format = field_validator("pages")(CitationBase.validate_pages_format)
+    @field_validator("type")
+    @classmethod
+    def normalize_type(cls, v: Optional[str]) -> Optional[str]:
+        """Normalize citation type to lowercase."""
+        if v is not None and isinstance(v, str):
+            return v.lower()
+        return v
+
+    @field_validator("authors")
+    @classmethod
+    def validate_authors(cls, v: Optional[List[str]]) -> Optional[List[str]]:
+        """Validate author names - length and allowed characters."""
+        if v is None:
+            return v
+        for author in v:
+            stripped = author.strip()
+            if len(stripped) > MAX_AUTHOR_NAME_LENGTH:
+                raise ValueError(
+                    f"Author name exceeds {MAX_AUTHOR_NAME_LENGTH} characters"
+                )
+            if not re.match(r"^[a-zA-ZÀ-ÿ\s\-\'\.']+$", stripped):
+                raise ValueError(
+                    "Author names can only contain letters, spaces, hyphens, apostrophes, and periods"
+                )
+        return v
+
+    @field_validator("year")
+    @classmethod
+    def validate_year_max(cls, v: Optional[int]) -> Optional[int]:
+        """Validate year doesn't exceed current year."""
+        if v is not None and v > datetime.now().year:
+            raise ValueError(f"Year cannot be in the future")
+        return v
+
+    @field_validator("doi")
+    @classmethod
+    def validate_doi_format(cls, v: Optional[str]) -> Optional[str]:
+        """Validate DOI format (10.xxxx/xxxx)."""
+        if v is not None and not re.match(r"^10\.\S+/\S+$", v):
+            raise ValueError("DOI must follow format: 10.xxxx/xxxx")
+        return v
+
+    @field_validator("pages")
+    @classmethod
+    def validate_pages_format(cls, v: Optional[str]) -> Optional[str]:
+        """Validate pages format and range logic (e.g., '123-145' or '1-3, 5-7')."""
+        if v is not None and not re.match(r"^[\d\-\s,]+$", v):
+            raise ValueError("Pages must contain only numbers, hyphens, commas, and spaces")
+        return v
 
 
 class CitationResponse(CitationBase):
