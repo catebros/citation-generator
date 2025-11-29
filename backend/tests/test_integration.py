@@ -12,7 +12,7 @@ client = TestClient(app)
 
 
 def test_create_project_and_citations_workflow():
-    """Test create project → create citations → query citations."""
+    """Test create project then create citations then query citations."""
 
     # Configure mocks
     mock_proj_service = MagicMock()
@@ -215,7 +215,7 @@ def test_bibliography_format_change_apa_to_mla():
 
 
 def test_full_workflow_project_citations_bibliography():
-    """Test complete workflow: project → citations → bibliography."""
+    """Test complete workflow: project then citations then bibliography."""
 
     mock_proj_service = MagicMock()
     mock_cit_service = MagicMock()
