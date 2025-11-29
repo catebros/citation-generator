@@ -6,6 +6,7 @@ from fastapi import FastAPI, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 import uvicorn
+from prometheus_fastapi_instrumentator import Instrumentator
 from routers import citation_router, project_router
 
 # Create database tables only in non-CI environments
@@ -45,6 +46,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Setup Prometheus metrics
+# This will expose metrics at /metrics endpoint
+Instrumentator().instrument(app).expose(app)
+
 # Include routers
 app.include_router(project_router.router)
 app.include_router(citation_router.router)
@@ -76,9 +81,20 @@ def health_check() -> Dict[str, Any]:
         Dict[str, Any]: Detailed health status with database connection info,
                        supported formats, and citation types
     """
+    db_status = "connected"
+    try:
+        # Only check DB connection if not in CI environment
+        if os.getenv("ENVIRONMENT") != "ci":
+            from db.database import engine
+            from sqlalchemy import text
+            with engine.connect() as connection:
+                connection.execute(text("SELECT 1"))
+    except Exception as e:
+        db_status = f"disconnected: {str(e)}"
+
     return {
-        "status": "healthy",
-        "database": "connected",
+        "status": "healthy" if db_status == "connected" else "degraded",
+        "database": db_status,
         "api_version": "1.0.0",
         "supported_formats": ["APA", "MLA"],
         "citation_types": ["article", "book", "website", "report"],
