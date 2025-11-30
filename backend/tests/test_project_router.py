@@ -202,9 +202,6 @@ def test_get_project_citations_success():
         app.dependency_overrides.clear()
 
 
-# Error cases
-
-
 def test_create_project_without_name():
     """Test POST without name returns 400."""
     mock_service = MagicMock()

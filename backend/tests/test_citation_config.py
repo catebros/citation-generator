@@ -1,22 +1,6 @@
 # backend/tests/test_citation_config.py
-"""
-Test suite for CitationFieldsConfig class.
-
-This module contains comprehensive tests for citation configuration management:
-- Singleton pattern behavior and initialization
-- Required fields retrieval for each citation type
-- Citation type validation
-- Data immutability protection
-- Configuration integrity across all citation types
-
-The CitationFieldsConfig class is a singleton that manages required fields
-for different citation types (book, article, website, report).
-"""
 import pytest
 from config.citation_config import CitationFieldsConfig
-
-# ========== SINGLETON PATTERN TESTS ==========
-
 
 def test_singleton_behavior():
     """Test that CitationFieldsConfig follows singleton pattern."""
@@ -47,9 +31,6 @@ def test_singleton_initialization_only_once():
     # Both should return the same data and be the same instance
     assert config1 is config2, "Should be the same instance"
     assert original_types == new_types, "Data should be identical"
-
-
-# ========== GET_REQUIRED_FIELDS TESTS ==========
 
 
 def test_get_required_fields_book():
@@ -140,9 +121,6 @@ def test_get_required_fields_none_type_raises_keyerror():
         config.get_required_fields(None)
 
 
-# ========== IS_VALID_TYPE TESTS ==========
-
-
 def test_is_valid_type_valid_types():
     """Test is_valid_type returns True for valid citation types."""
     config = CitationFieldsConfig()
@@ -184,9 +162,6 @@ def test_is_valid_type_with_none():
     assert config.is_valid_type(None) is False
 
 
-# ========== GET_SUPPORTED_TYPES TESTS ==========
-
-
 def test_get_supported_types():
     """Test get_supported_types returns exactly the expected types."""
     config = CitationFieldsConfig()
@@ -215,9 +190,6 @@ def test_get_supported_types_has_all_types():
     assert "article" in supported_types
     assert "website" in supported_types
     assert "report" in supported_types
-
-
-# ========== GET_REQUIRED_FOR_CITATION_TYPES TESTS ==========
 
 
 def test_get_required_for_citation_types_returns_dict():
@@ -250,9 +222,6 @@ def test_get_required_for_citation_types_each_has_fields():
         assert (
             len(fields) > 0
         ), f"{citation_type} should have at least one required field"
-
-
-# ========== DATA IMMUTABILITY TESTS ==========
 
 
 def test_data_immutability_required_for_citation_types():
@@ -321,10 +290,6 @@ def test_data_immutability_nested_list_modification():
     # Get fresh data and verify nested list wasn't modified
     fresh_book_fields = config.get_required_fields("book")
     assert "fake_field" not in fresh_book_fields, "Nested list should not be modified"
-
-
-# ========== CONFIGURATION INTEGRITY TESTS ==========
-
 
 def test_all_citation_types_have_required_fields():
     """Test that all supported citation types have required fields defined."""

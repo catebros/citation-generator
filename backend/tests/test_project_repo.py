@@ -1,40 +1,4 @@
 # backend/tests/test_project_repo.py
-"""
-Test suite for ProjectRepository class.
-
-This module contains comprehensive tests for the ProjectRepository which handles
-database operations for projects. The tests cover all CRUD operations and complex
-scenarios including:
-
-- Project creation and retrieval
-- Updating project information
-- Deleting projects with various citation scenarios
-- Orphan citation cleanup when projects are deleted
-- Shared citation preservation across multiple projects
-- Case-insensitive project name search
-- Citation retrieval by project
-- Ordering verification for query results
-
-Test organization:
-- CREATE tests: Verify project creation
-- GET BY ID tests: Test retrieval by primary key
-- GET ALL tests: Test listing all projects with ordering
-- UPDATE tests: Test project field updates and None value handling
-- DELETE tests: Cover projects with no citations, unique citations, shared citations, and mixed scenarios
-- GET BY NAME tests: Test case-insensitive name search
-- GET ALL BY PROJECT tests: Test citation retrieval for projects
-- EXTRA tests: Out-of-layer scenarios for robustness verification
-
-Complex deletion scenarios tested:
-- Projects with no citations
-- Projects with unique citations (orphan cleanup)
-- Projects with shared citations (preservation)
-- Projects with mixed unique and shared citations
-- CASCADE integrity verification
-- Performance with multiple citations
-
-All tests use in-memory SQLite database for fast, isolated execution.
-"""
 import os
 import tempfile
 import time
@@ -71,7 +35,6 @@ def db_session():
         os.unlink(db_path)  # Clean up temp file
 
 
-# TEST FOR CREATE
 # Creates a new project and verifies it has an ID and correct name
 def test_create_project(db_session):
     repo = ProjectRepository(db_session)
@@ -81,7 +44,6 @@ def test_create_project(db_session):
     assert project.name == "AI Thesis"
 
 
-# TEST FOR GET BY ID
 # Retrieves a project by its ID and verifies all attributes match
 def test_get_project_by_id(db_session):
     repo = ProjectRepository(db_session)
@@ -100,7 +62,6 @@ def test_get_project_by_id_not_found(db_session):
     assert fetched is None
 
 
-# TEST FOR GET ALL
 # Returns empty list when no projects exist and ensures proper ordering by created_at desc
 def test_get_all_projects(db_session):
     repo = ProjectRepository(db_session)
@@ -129,7 +90,6 @@ def test_get_all_projects_empty(db_session):
     assert projects == []
 
 
-# TEST UPDATE
 # Updates project name and ignores None values to preserve existing data
 def test_update_project_name(db_session):
     repo = ProjectRepository(db_session)
@@ -147,7 +107,6 @@ def test_update_project_not_found(db_session):
     assert result is None
 
 
-# TEST DELETE
 # Deletes project with no citations successfully
 def test_delete_project_with_no_citations(db_session):
     repo = ProjectRepository(db_session)
@@ -364,7 +323,6 @@ def test_delete_project_multiple_citations_performance(db_session):
     assert remaining_assocs == 0
 
 
-# TEST GET BY NAME
 # Returns project when it exists with the given name
 def test_get_by_name_existing(db_session):
     repo = ProjectRepository(db_session)
@@ -465,7 +423,6 @@ def test_get_by_name_case_insensitive_with_special_characters(db_session):
     )  # Original case preserved
 
 
-# TEST GET ALL BY PROJECT
 # Returns citations ordered by created_at desc for a specific project
 def test_get_all_by_project(db_session):
     project_repo = ProjectRepository(db_session)
@@ -521,15 +478,12 @@ def test_get_all_by_project_nonexistent_project(db_session):
     assert results == []
 
 
-# =========================================================
 # OUT OF LAYER SCOPE TESTS (EXTRA)
 # These tests cover situations that, according to the app’s logic,
 # should never reach the repository layer because they are already
 # validated at the service/validator layer. However, we include them
 # here to ensure that the repository behaves safely and consistently
 # when receiving unexpected or invalid data.
-# =========================================================
-
 
 def test_update_project_with_invalid_field_is_ignored(db_session):
     repo = ProjectRepository(db_session)

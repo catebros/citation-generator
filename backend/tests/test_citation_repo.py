@@ -23,7 +23,6 @@ def db_session():
         db.close()
 
 
-# ========== CREATE TESTS ==========
 # Creates a new citation linked to a project and verifies data integrity
 def test_create_citation_linked_to_project(db_session):
     repo = CitationRepository(db_session)
@@ -253,8 +252,6 @@ def test_find_duplicate_citation_no_false_positive(db_session):
     duplicate = repo.find_duplicate_citation_in_project(project.id, test_data)
     assert duplicate is None  # Should not find a duplicate
 
-
-# ========== GET BY ID TESTS ==========
 # Retrieves citation by ID and verifies all attributes match
 def test_get_citation_by_id(db_session):
     repo = CitationRepository(db_session)
@@ -329,8 +326,6 @@ def test_delete_citation_single_project(db_session):
 
 
 # Removes association but preserves citation when used by multiple projects
-
-
 def test_delete_citation_multiple_projects(db_session):
     repo = CitationRepository(db_session)
 
@@ -448,7 +443,6 @@ def test_delete_citation_with_none_project_id(db_session):
     assert len(assocs) == 0
 
 
-# ========== UPDATE TESTS ==========
 # Updates citation fields and verifies changes are applied
 def test_update_citation(db_session):
     repo = CitationRepository(db_session)
@@ -837,16 +831,12 @@ def test_update_citation_all_fields_at_once(db_session):
     assert updated.edition is None  # Not used for articles
 
 
-# =========================================================
 # OUT OF LAYER SCOPE TESTS (EXTRA)
 # These tests cover situations that, according to the app’s logic,
 # should never reach the repository layer because they are already
 # validated at the service/validator layer. However, we include them
 # here to ensure that the repository behaves safely and consistently
 # when receiving unexpected or invalid data.
-# =========================================================
-
-
 def test_update_citation_with_invalid_field_is_ignored(db_session):
     repo = CitationRepository(db_session)
 

@@ -107,10 +107,6 @@ def test_get_all_projects_service_to_repo_integration(project_service, project_r
     assert len(repo_projects) == 3
     assert {p.name for p in all_projects} == {"Project 1", "Project 2", "Project 3"}
 
-
-# ========== CITATION SERVICE + REPOSITORY INTEGRATION ==========
-
-
 def test_create_citation_service_to_repo_integration(
     citation_service, project_service, citation_repo
 ):
@@ -226,10 +222,6 @@ def test_get_citation_service_to_repo_integration(
     assert fetched_citation.id == repo_citation.id
     assert fetched_citation.title == "Test Website"
     assert fetched_citation.url == "https://example.com"
-
-
-# ========== CROSS-SERVICE INTEGRATION ==========
-
 
 def test_project_citations_relationship_integration(
     project_service, citation_service, project_repo, citation_repo

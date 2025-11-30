@@ -165,9 +165,6 @@ def test_delete_citation_success():
         app.dependency_overrides.clear()
 
 
-# Error cases
-
-
 def test_create_citation_project_not_found():
     """Test POST with nonexistent project returns 404."""
     # Setup mock service

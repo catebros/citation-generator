@@ -160,6 +160,7 @@ def auto_mock_get_db(request, mock_db_session):
         "integration" in request.node.name
         or "performance" in request.node.name
         or "main" in request.node.name
+        or "full_stack" in request.node.name
     ):
         # These tests need real DB setup instead
         yield
@@ -187,7 +188,7 @@ def integration_db_engine(request):
         db_url,
         connect_args={"check_same_thread": False},
         echo=False,
-        poolclass=sqlalchemy.pool.StaticPool
+        poolclass=sqlalchemy.pool.NullPool
     )
 
     # Import and create tables
@@ -208,14 +209,17 @@ def setup_integration_db(request, integration_db_engine):
     Setup SQLite database for integration tests.
     Each test gets its own fresh database.
     """
-    # Only apply to integration/performance/main tests
+    # Only apply to integration/performance/main/full_stack tests
     if not (
         "integration" in request.node.name
         or "performance" in request.node.name
         or "main" in request.node.name
+        or "full_stack" in request.node.name
     ):
         yield
         return
+
+    print(f"DEBUG CONFTEST: Setting up integration DB for test: {request.node.name}")
 
     # Use unique integration_db_engine for this test
     engine = integration_db_engine

@@ -1,27 +1,8 @@
 # backend/tests/test_apa_formatter.py
-"""
-Test suite for APAFormatter class.
-
-This module contains comprehensive tests for APA (American Psychological Association)
-7th edition citation formatting including:
-- Author name formatting (initials, multiple authors, 20+ authors with ellipsis)
-- Citation type formatting (book, article, website, report)
-- Sentence case title conversion with acronym preservation
-- Edition normalization (1st ignored, 2nd-113th with proper suffixes)
-- Author list parsing from JSON
-- Missing field handling and edge cases
-- Special formatting rules (n.d. for no date, en-dashes for page ranges)
-
-The formatter implements APA 7th edition guidelines with proper punctuation,
-italicization, and field ordering for academic citations.
-"""
 import json
 
 from models.citation import Citation
 from services.formatters.apa_formatter import APAFormatter
-
-# ========== AUTHOR FORMATTING TESTS ==========
-
 
 def test_apa_format_authors_single_author():
     """Test APA formatting for single author."""
@@ -53,10 +34,6 @@ def test_apa_format_authors_empty_list():
     formatter = APAFormatter(citation)
     result = formatter._format_authors([])
     assert result == ""
-
-
-# ========== BOOK CITATION TESTS ==========
-
 
 def test_apa_book_complete_data():
     """Test APA book citation with all fields."""
@@ -111,10 +88,6 @@ def test_apa_book_first_edition_ignored():
     )
     expected = "Author, A. (2023). <i>First edition book</i>. Publisher."
     assert result == expected
-
-
-# ========== ARTICLE CITATION TESTS ==========
-
 
 def test_apa_article_complete_data():
     """Test APA article citation with all fields."""
@@ -179,10 +152,6 @@ def test_apa_article_without_issue():
     expected = "Author, A. (2023). Article without issue. <i>Test Journal</i>, <i>1</i>, 10–20."
     assert result == expected
 
-
-# ========== WEBSITE CITATION TESTS ==========
-
-
 def test_apa_website_complete_data():
     """Test APA website citation with all fields."""
     citation = Citation(
@@ -219,10 +188,6 @@ def test_apa_website_minimal_data():
         "Author, W. (2024). Website title. <i>Sample Site</i>. https://example.com"
     )
     assert result == expected
-
-
-# ========== REPORT CITATION TESTS ==========
-
 
 def test_apa_report_complete_data():
     """Test APA report citation with all fields."""
@@ -263,10 +228,6 @@ def test_apa_report_without_url():
         "Student, M. (2023). <i>Technical report</i> [Report]. Tech Research Corp."
     )
     assert result == expected
-
-
-# ========== EDGE CASE AND ERROR HANDLING TESTS ==========
-
 
 def test_apa_citation_missing_fields_handled_gracefully():
     """Test that missing fields are handled gracefully."""
@@ -352,9 +313,6 @@ def test_apa_website_no_url():
     assert result == expected
 
 
-# ========== EDITION NORMALIZATION TESTS ==========
-
-
 def test_apa__normalize_edition_various():
     """Test APA edition normalization."""
     citation = Citation(type="book")
@@ -403,10 +361,6 @@ def test_apa__get_authors_list_various_formats():
     citation.authors = "John Smith"
     formatter = APAFormatter(citation)
     assert formatter._get_authors_list() == ["John Smith"]
-
-
-# ========== INTEGRATION TESTS ==========
-
 
 def test_apa_book_with_advanced_edition_in_real_citation():
     """Test APA book with advanced edition (21st ed.) integrated in real citation."""
@@ -559,10 +513,6 @@ def test_apa_authors_exactly_20_no_ellipsis():
     assert "First20, A." in formatted_authors
     assert formatted_authors.endswith(", & First20, A.")
 
-
-# ========== SENTENCE CASE CONVERSION TESTS ==========
-
-
 def test_apa_to_sentence_case_basic():
     """Test APA _to_sentence_case with basic titles."""
     citation = Citation(type="book")
@@ -679,9 +629,6 @@ def test_apa_to_sentence_case_complex_scenarios():
         formatter._to_sentence_case("The HTML5 and CSS3 Revolution")
         == "The HTML5 and CSS3 revolution"
     )
-
-
-# ========== APA AUTHOR NAME NORMALIZATION TESTS ==========
 
 
 def test_apa_normalize_author_name_two_part():

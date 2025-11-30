@@ -19,9 +19,6 @@ from services.citation_service import CitationService
 from services.project_service import ProjectService
 from sqlalchemy.orm import Session
 
-# ========== GET_CITATION_SERVICE TESTS ==========
-
-
 @patch("dependencies.get_db")
 def test_get_citation_service_returns_citation_service_instance(mock_get_db):
     """Test get_citation_service() returns CitationService instance."""
@@ -52,9 +49,6 @@ def test_citation_service_creation_error(mock_citation_service):
         get_citation_service(mock_session)
 
 
-# ========== GET_PROJECT_SERVICE TESTS ==========
-
-
 @patch("dependencies.get_db")
 def test_get_project_service_returns_project_service_instance(mock_get_db):
     """Test get_project_service() returns ProjectService instance."""
@@ -71,9 +65,6 @@ def test_get_project_service_returns_project_service_instance(mock_get_db):
 
     assert isinstance(project_service, ProjectService)
     assert project_service._project_repo is not None
-
-
-# ========== GET_DB TESTS ==========
 
 
 def test_get_db_returns_session():
@@ -114,10 +105,6 @@ def test_get_db_closes_on_exception(mock_session_factory):
 
     # Now the session should have been closed
     mock_session.close.assert_called_once()
-
-
-# ========== ERROR HANDLING TESTS ==========
-
 
 def test_get_db_exception_handling():
     """Test basic exception handling in get_db."""

@@ -1,17 +1,4 @@
 # backend/tests/test_project_service.py
-"""
-Test suite for ProjectService class.
-
-This module contains comprehensive tests for all project operations including:
-- Project creation with name validation and uniqueness checking
-- Project retrieval by ID and listing all projects
-- Project updates with name conflict detection
-- Project deletion with cascade to citations
-- Citation retrieval by project
-- Bibliography generation in APA and MLA formats
-
-All tests use in-memory SQLite database for fast, isolated testing.
-"""
 import pytest
 from fastapi import HTTPException
 from models.base import Base
@@ -36,9 +23,6 @@ def db_session():
 def project_service(db_session):
     """Provide a ProjectService instance with test database."""
     return ProjectService(db_session)
-
-
-# ========== CREATE_PROJECT TESTS ==========
 
 
 def test_create_project_data_none(project_service):
@@ -77,9 +61,6 @@ def test_create_project_valid_case(project_service):
     assert result.id is not None
 
 
-# ========== GET_PROJECT TESTS ==========
-
-
 def test_get_project_id_none(project_service):
     """project_id is None returns HTTP 400"""
     with pytest.raises(HTTPException) as exc_info:
@@ -105,9 +86,6 @@ def test_get_project_found(project_service):
     assert result.name == "Test Project"
 
 
-# ========== GET_ALL_PROJECTS TESTS ==========
-
-
 def test_get_all_projects_empty(project_service):
     """Returns empty list when no projects exist"""
     result = project_service.get_all_projects()
@@ -127,9 +105,6 @@ def test_get_all_projects(project_service):
     project_names = [p.name for p in result]
     assert "Project 1" in project_names
     assert "Project 2" in project_names
-
-
-# ========== UPDATE_PROJECT TESTS ==========
 
 
 def test_update_project_id_none(project_service):
@@ -198,9 +173,6 @@ def test_update_project_same_name(project_service):
     assert result.name == "Project Name"
 
 
-# ========== DELETE_PROJECT TESTS ==========
-
-
 def test_delete_project_id_none(project_service):
     """project_id is None returns HTTP 400"""
     with pytest.raises(HTTPException) as exc_info:
@@ -252,9 +224,6 @@ def test_delete_project_with_citations(project_service, db_session):
     with pytest.raises(HTTPException) as exc_info:
         project_service.get_project(project.id)
     assert exc_info.value.status_code == 404
-
-
-# ========== GET_ALL_CITATIONS_BY_PROJECT TESTS ==========
 
 
 def test_get_all_citations_by_project_id_none(project_service):
@@ -345,9 +314,6 @@ def test_get_all_citations_by_project_empty(project_service):
     result = project_service.get_all_citations_by_project(project.id)
     assert len(result) == 0
     assert result == []
-
-
-# ========== GENERATE_BIBLIOGRAPHY_BY_PROJECT TESTS ==========
 
 
 def test_generate_bibliography_project_id_none(project_service):

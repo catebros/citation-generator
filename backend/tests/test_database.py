@@ -1,13 +1,3 @@
-# backend/tests/test_database.py
-"""
-Unit test suite for database module using mocks (no real database connections).
-
-This module contains comprehensive mocked tests for database configuration and session management:
-- Database engine singleton pattern and lifecycle
-- Session factory creation and configuration
-- Session generator (get_db) for FastAPI dependency injection
-- Error handling and edge cases
-"""
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -19,7 +9,6 @@ from db.database import (
 )
 from sqlalchemy.orm import Session
 
-# ========== TEST FIXTURES ==========
 
 
 @pytest.fixture
@@ -51,9 +40,6 @@ def consume_generator():
             pass
 
     return _consume
-
-
-# ========== DATABASE ENGINE SINGLETON TESTS ==========
 
 
 @patch("db.database.create_engine")
@@ -149,9 +135,6 @@ def test_reset_instance_without_existing_engine(
     assert engine is mock_engine_instance
 
 
-# ========== SESSION FACTORY TESTS ==========
-
-
 @patch("db.database.get_singleton_engine")
 def test_local_session_factory(mock_get_engine, mock_engine_instance):
     """Test that session factory creates valid sessions."""
@@ -180,9 +163,6 @@ def test_session_factory_returns_new_factory_on_engine_reset(
     # Factories should be different due to reset
     # (get_session_factory creates a new factory each time it's called)
     assert original_factory is not new_factory
-
-
-# ========== GET_DB GENERATOR TESTS ==========
 
 
 @patch("db.database.get_session_factory")
@@ -293,9 +273,6 @@ def test_get_db_multiple_iterations(mock_get_factory, mock_session_instance):
         next(db_generator)
 
 
-# ========== SESSION ISOLATION TESTS ==========
-
-
 @patch("db.database.get_session_factory")
 def test_database_session_isolation(mock_get_factory, consume_generator):
     """Test that different calls to get_db return independent sessions."""
@@ -326,9 +303,6 @@ def test_database_session_isolation(mock_get_factory, consume_generator):
     # Both should have had close called
     mock_session1.close.assert_called_once()
     mock_session2.close.assert_called_once()
-
-
-# ========== SINGLETON ENGINE FUNCTION TESTS ==========
 
 
 @patch("db.database.DatabaseEngine")

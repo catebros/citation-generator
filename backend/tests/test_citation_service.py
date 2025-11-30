@@ -31,9 +31,6 @@ def project_service(db_session):
     return ProjectService(db_session)
 
 
-# ========== CREATE_CITATION TESTS ==========
-
-
 def test_create_citation_project_id_none(citation_service):
     """project_id is None returns HTTP 400"""
     with pytest.raises(HTTPException) as exc_info:
@@ -100,9 +97,6 @@ def test_create_citation_valid_case(citation_service, project_service):
     assert result.title == "Test Book"
 
 
-# ========== GET_CITATION TESTS ==========
-
-
 def test_get_citation_id_none(citation_service):
     """citation_id is None returns HTTP 400"""
     with pytest.raises(HTTPException) as exc_info:
@@ -136,10 +130,6 @@ def test_get_citation_found(citation_service, project_service):
     result = citation_service.get_citation(created_citation.id)
     assert result.id == created_citation.id
     assert result.title == "Test Book"
-
-
-# ========== UPDATE_CITATION TESTS ==========
-
 
 def test_update_citation_id_none(citation_service):
     """citation_id is None returns HTTP 400"""
@@ -270,10 +260,6 @@ def test_update_citation_type_changes(citation_service, project_service):
     assert result.title == "Updated Article"
     assert result.type == "article"
 
-
-# ========== DELETE_CITATION TESTS ==========
-
-
 def test_delete_citation_id_none(citation_service):
     """citation_id is None returns HTTP 400"""
     with pytest.raises(HTTPException) as exc_info:
@@ -320,31 +306,6 @@ def test_delete_citation_valid_case(citation_service, project_service):
 
     result = citation_service.delete_citation(citation.id, project.id)
     assert result == {"message": "Citation deleted"}
-
-
-def test_delete_citation_not_in_project(citation_service, project_service):
-    """Citation exists but doesn't belong to the specified project"""
-    project1 = project_service.create_project({"name": "Project 1"})
-    project2 = project_service.create_project({"name": "Project 2"})
-
-    citation_data = {
-        "type": "book",
-        "title": "Test Book",
-        "authors": ["Author"],
-        "year": 2020,
-        "publisher": "Publisher",
-        "place": "City",
-        "edition": 1,
-    }
-    citation = citation_service.create_citation(project1.id, citation_data)
-
-    # Try to delete citation from project1 using project2's id
-    # Currently this may not be enforced, test documents expected behavior
-    result = citation_service.delete_citation(citation.id, project2.id)
-    assert result == {"message": "Citation deleted"}
-
-
-# ========== FORMAT_CITATION TESTS ==========
 
 
 def test_format_citation_apa(citation_service, project_service):

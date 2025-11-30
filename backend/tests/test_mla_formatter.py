@@ -1,28 +1,9 @@
 # backend/tests/test_mla_formatter.py
-"""
-Test suite for MLAFormatter class.
-
-This module contains comprehensive tests for MLA (Modern Language Association)
-9th edition citation formatting including:
-- Author name formatting (inversion of first author, et al. for 4+ authors)
-- Citation type formatting (book, article, website, report)
-- Title case conversion with proper capitalization rules
-- Edition normalization (1st ignored, 2nd-113th with proper suffixes)
-- Access date formatting for web sources (YYYY-MM-DD to "Accessed Day Mon. Year")
-- Missing field handling and edge cases
-- Special formatting rules (quotation marks for articles, italics for books/journals)
-
-The formatter implements MLA 9th edition guidelines with proper punctuation,
-formatting, and field ordering for academic citations.
-"""
 import json
 
 import pytest
 from models.citation import Citation
 from services.formatters.mla_formatter import MLAFormatter
-
-# ========== BOOK CITATION TESTS ==========
-
 
 def test_mla_book_single_author():
     """Test MLA book citation with single author."""
@@ -114,10 +95,6 @@ def test_mla_book_first_edition_ignored():
     expected = "Name, Author. <i>First Edition Book</i>. Publisher, 2023."
     assert result == expected
 
-
-# ========== ARTICLE CITATION TESTS ==========
-
-
 def test_mla_article_complete_data():
     """Test MLA article citation with complete data."""
     citation = Citation(
@@ -182,10 +159,6 @@ def test_mla_article_without_issue():
     )
     assert result == expected
 
-
-# ========== WEBSITE CITATION TESTS ==========
-
-
 def test_mla_website_complete_data():
     """Test MLA website citation with complete data."""
     citation = Citation(
@@ -246,9 +219,6 @@ def test_mla_website_without_access_date():
     assert result == expected
 
 
-# ========== REPORT CITATION TESTS ==========
-
-
 def test_mla_report_complete_data():
     """Test MLA report citation with complete data."""
     citation = Citation(
@@ -286,9 +256,6 @@ def test_mla_report_without_url():
     )
     expected = "Student, M. <i>Technical Report</i>. Tech Research Corp, 2023."
     assert result == expected
-
-
-# ========== AUTHOR FORMATTING TESTS ==========
 
 
 def test_mla_format_authors_single():
@@ -330,10 +297,6 @@ def test_mla_format_authors_empty():
     expected = ""
     assert result == expected
 
-
-# ========== EDITION NORMALIZATION TESTS ==========
-
-
 def test_mla__normalize_edition_various():
     """Test MLA edition normalization."""
     citation = Citation(type="book")
@@ -359,9 +322,6 @@ def test_mla__normalize_edition_various():
     assert formatter._normalize_edition(111) == "111th ed."
     assert formatter._normalize_edition(112) == "112th ed."
     assert formatter._normalize_edition(113) == "113th ed."
-
-
-# ========== EDGE CASE AND ERROR HANDLING TESTS ==========
 
 
 def test_mla_unsupported_citation_type():
@@ -394,10 +354,6 @@ def test_mla_missing_required_fields_handled_gracefully():
     # Should handle missing fields without crashing
     assert isinstance(result, str)
     assert "n.d." in result  # Should show "no date"
-
-
-# ========== INTEGRATION TESTS ==========
-
 
 def test_mla_book_with_advanced_edition_in_real_citation():
     """Test MLA book with advanced edition (22nd ed.) integrated in real citation."""
@@ -518,9 +474,6 @@ def test_mla_authors_four_or_more_shows_et_al():
     assert formatted_many == "First1, Author1, et al."
 
 
-# ========== TITLE CASE CONVERSION TESTS ==========
-
-
 def test_mla_title_case_conversion():
     """Test MLA Title Case conversion with various scenarios."""
     citation = Citation(type="book")
@@ -615,10 +568,6 @@ def test_mla_authors_exactly_three_lists_all():
     expected = "John, Smith, Doe Jane, and Brown Bob"
     assert formatted_authors == expected
 
-
-# ========== MLA ACCESS DATE FORMATTING TESTS ==========
-
-
 def test_mla_format_access_date_valid_format():
     """Test MLA _format_access_date with valid YYYY-MM-DD format."""
     citation = Citation(type="website")
@@ -689,9 +638,6 @@ def test_mla_format_access_date_none_raises_error():
     # None is not a valid input - method expects string, will raise TypeError
     with pytest.raises(TypeError):
         formatter._format_access_date(None)
-
-
-# ========== MLA AUTHOR NAME NORMALIZATION TESTS ==========
 
 
 def test_mla_normalize_author_name_two_part():
