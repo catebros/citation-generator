@@ -9,6 +9,16 @@ citations.db
 /.pytest_cache
 /backend/.pytest_cache
 
+# Test reports
+htmlcov/
+/backend/htmlcov/
+coverage.xml
+/backend/coverage.xml
+.coverage
+/backend/.coverage
+test-results/
+/backend/test-results/
+
 /frontend/node_modules
 .env
 .env.*
