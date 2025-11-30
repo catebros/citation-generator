@@ -3,6 +3,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING, List
 
 from .base_citation_formatter import BaseCitationFormatter
+from .formatter_constants import MLA_LOWERCASE_WORDS
 
 if TYPE_CHECKING:
     from models.citation import Citation
@@ -19,83 +20,6 @@ class MLAFormatter(BaseCitationFormatter):
         """Convert title to MLA title case with capitalization rules for major words."""
         if not title:
             return ""
-
-        # Words that should not be capitalized (unless first or last word)
-        lowercase_words = {
-            # Articles
-            "a",
-            "an",
-            "the",
-            # Coordinating conjunctions
-            "and",
-            "or",
-            "but",
-            "nor",
-            "for",
-            "so",
-            "yet",
-            # Short prepositions (under 5 letters per MLA 9)
-            "of",
-            "in",
-            "on",
-            "at",
-            "by",
-            "to",
-            "up",
-            "as",
-            "is",
-            "if",
-            "be",
-            "off",
-            "out",
-            "via",
-            "per",
-            "pro",
-            "mid",
-            # Common prepositions and conjunctions
-            "with",
-            "from",
-            "into",
-            "over",
-            "upon",
-            "onto",
-            "than",
-            "like",
-            "till",
-            "past",
-            "near",
-            "down",
-            "amid",
-            "atop",
-            # Special abbreviations and versus
-            "vs",
-            "vs.",
-            "v.",
-            "v",
-            # To be verbs (when used as helping verbs)
-            "am",
-            "are",
-            "was",
-            "were",
-            "been",
-            "being",
-            # Other common function words
-            "can",
-            "may",
-            "must",
-            "will",
-            "shall",
-            "do",
-            "did",
-            "does",
-            "has",
-            "have",
-            "had",
-            "could",
-            "would",
-            "should",
-            "might",
-        }
 
         # Split by colon to handle subtitles
         parts = title.split(":")
@@ -117,7 +41,7 @@ class MLAFormatter(BaseCitationFormatter):
                 if i == 0 or i == len(words) - 1:
                     title_case_words.append(word.capitalize())
                 # Check if word should remain lowercase
-                elif clean_word in lowercase_words:
+                elif clean_word in MLA_LOWERCASE_WORDS:
                     title_case_words.append(word.lower())
                 else:
                     title_case_words.append(word.capitalize())
@@ -131,16 +55,17 @@ class MLAFormatter(BaseCitationFormatter):
         authors = self._get_authors_list()
         formatted_authors = self._format_authors(authors)
 
-        if self._citation.type == "book":
-            return self._format_book(formatted_authors)
-        elif self._citation.type == "article":
-            return self._format_article(formatted_authors)
-        elif self._citation.type == "website":
-            return self._format_website(formatted_authors)
-        elif self._citation.type == "report":
-            return self._format_report(formatted_authors)
-        else:
-            return f"Unsupported citation type: {self._citation.type}"
+        formatters = {
+            "book": self._format_book,
+            "article": self._format_article,
+            "website": self._format_website,
+            "report": self._format_report,
+        }
+
+        formatter = formatters.get(self._citation.type)
+        if formatter:
+            return formatter(formatted_authors)
+        return f"Unsupported citation type: {self._citation.type}"
 
     def _format_authors(self, authors: List[str]) -> str:
         """Format authors per MLA style with first author inverted, et al. for 4+."""

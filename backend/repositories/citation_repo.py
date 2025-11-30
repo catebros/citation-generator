@@ -1,7 +1,4 @@
 # backend/repositories/citation_repo.py
-"""
-Citation repository for CRUD operations with duplicate detection.
-"""
 import json
 from typing import Any, Dict, List, Optional
 

@@ -15,9 +15,6 @@ class CitationFieldsConfig:
     def __new__(cls) -> "CitationFieldsConfig":
         """
         Create a new instance only if one doesn't exist.
-
-        Returns:
-            CitationFieldsConfig: The singleton instance of the configuration class
         """
         if cls._instance is None:
             cls._instance = super(CitationFieldsConfig, cls).__new__(cls)
@@ -80,25 +77,12 @@ class CitationFieldsConfig:
     def get_required_for_citation_types(self) -> Dict[str, List[str]]:
         """
         Get the required fields for each citation type.
-
-        Returns:
-            Dict[str, List[str]]: Dictionary mapping citation types to their required fields.
-                                 Returns a deep copy to prevent external modification.
         """
         return copy.deepcopy(self._required_for_citation_types)
 
     def get_required_fields(self, citation_type: str) -> List[str]:
         """
         Get required fields for a specific citation type.
-
-        Args:
-            citation_type (str): The type of citation
-
-        Returns:
-            List[str]: List of required fields for the citation type
-
-        Raises:
-            KeyError: If citation type is not supported
         """
         if citation_type not in self._required_for_citation_types:
             raise KeyError(f"Unsupported citation type: {citation_type}")
@@ -107,21 +91,12 @@ class CitationFieldsConfig:
     def get_supported_types(self) -> List[str]:
         """
         Get all supported citation types.
-
-        Returns:
-            List[str]: List of supported citation types (book, article, website, report)
         """
         return list(self._required_for_citation_types.keys())
 
     def is_valid_type(self, citation_type: str) -> bool:
         """
         Check if a citation type is supported.
-
-        Args:
-            citation_type (str): The citation type to validate
-
-        Returns:
-            bool: True if the citation type is supported, False otherwise
         """
         return citation_type in self._required_for_citation_types
 

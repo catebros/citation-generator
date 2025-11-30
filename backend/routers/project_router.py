@@ -1,18 +1,4 @@
 # backend/routers/project_router.py
-"""
-Project management API router.
-
-This module provides REST API endpoints for project CRUD operations:
-- Create new projects
-- Retrieve project(s) by ID or all projects
-- Update existing projects
-- Delete projects
-- Get all citations for a project
-- Generate formatted bibliographies for projects
-
-All endpoints use dependency injection for service layer access
-and include comprehensive error handling.
-"""
 import json
 from typing import Any, Dict, List
 
@@ -22,9 +8,6 @@ from services.project_service import ProjectService
 
 router = APIRouter(tags=["Projects"])
 
-# ========== PROJECT CRUD ENDPOINTS ==========
-
-
 @router.post("/projects", status_code=status.HTTP_201_CREATED)
 def create_project(
     project_data: Dict[str, Any],
@@ -32,12 +15,6 @@ def create_project(
 ) -> Dict[str, Any]:
     """
     Create a new project.
-
-    Args:
-        project_data: Project creation data (must include 'name')
-
-    Returns:
-        Created project with assigned ID
     """
     try:
         project = project_service.create_project(project_data)
@@ -58,9 +35,6 @@ def get_all_projects(
 ) -> List[Dict[str, Any]]:
     """
     Get all projects.
-
-    Returns:
-        List of all projects in the system
     """
     try:
         projects = project_service.get_all_projects()
@@ -82,12 +56,6 @@ def get_project(
 ) -> Dict[str, Any]:
     """
     Get a specific project by ID.
-
-    Args:
-        project_id: ID of the project to retrieve
-
-    Returns:
-        Project data
     """
     try:
         project = project_service.get_project(project_id)
@@ -110,13 +78,6 @@ def update_project(
 ) -> Dict[str, Any]:
     """
     Update an existing project.
-
-    Args:
-        project_id: ID of the project to update
-        project_data: Updated project data
-
-    Returns:
-        Updated project
     """
     try:
         project = project_service.update_project(project_id, project_data)
@@ -137,12 +98,6 @@ def delete_project(
 ) -> Dict[str, str]:
     """
     Delete a project.
-
-    Args:
-        project_id: ID of the project to delete
-
-    Returns:
-        Confirmation message
     """
     try:
         return project_service.delete_project(project_id)
@@ -150,9 +105,6 @@ def delete_project(
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
-
-
-# ========== PROJECT BIBLIOGRAPHY ENDPOINTS ==========
 
 
 @router.get("/projects/{project_id}/bibliography", status_code=status.HTTP_200_OK)
@@ -163,14 +115,6 @@ def generate_bibliography(
 ) -> Dict[str, Any]:
     """
     Generate a complete bibliography for a project.
-
-    Args:
-        project_id (int): ID of the project
-        format_type (str): Format type (apa, mla), defaults to "apa"
-        project_service (ProjectService): Injected project service instance
-
-    Returns:
-        Dict[str, Any]: Complete formatted bibliography with all project citations
     """
     try:
         bibliography = project_service.generate_bibliography_by_project(
@@ -183,21 +127,12 @@ def generate_bibliography(
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
-# ========== PROJECT CITATIONS ENDPOINTS ==========
-
-
 @router.get("/projects/{project_id}/citations", status_code=status.HTTP_200_OK)
 def get_project_citations(
     project_id: int, project_service: ProjectService = Depends(get_project_service)
 ) -> List[Dict[str, Any]]:
     """
     Get all citations for a specific project.
-
-    Args:
-        project_id: ID of the project
-
-    Returns:
-        List of citations belonging to the project
     """
     try:
         citations = project_service.get_all_citations_by_project(project_id)

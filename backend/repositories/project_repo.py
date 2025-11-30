@@ -1,7 +1,4 @@
 # backend/repositories/project_repo.py
-"""
-Project repository for CRUD operations with orphan citation cleanup.
-"""
 from typing import Any, Dict, List, Optional
 
 from models.citation import Citation

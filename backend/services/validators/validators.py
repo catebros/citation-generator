@@ -1,6 +1,4 @@
 # backend/services/validators/validators.py
-"""Reusable parameter validation logic following DRY and SRP principles."""
-
 from fastapi import HTTPException
 
 

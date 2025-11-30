@@ -2,6 +2,7 @@
 from typing import TYPE_CHECKING, List
 
 from .base_citation_formatter import BaseCitationFormatter
+from .formatter_constants import APA_ACRONYMS
 
 if TYPE_CHECKING:
     from models.citation import Citation
@@ -18,217 +19,6 @@ class APAFormatter(BaseCitationFormatter):
         """Convert title to APA sentence case preserving acronyms and proper nouns."""
         if not title:
             return ""
-
-        # Known acronyms and abbreviations that should stay uppercase
-        acronyms = {
-            # Technology & Computing
-            "AI",
-            "API",
-            "AR",
-            "AWS",
-            "CDN",
-            "CLI",
-            "CPU",
-            "CSS",
-            "CSV",
-            "DNA",
-            "DOS",
-            "DVD",
-            "FAQ",
-            "FTP",
-            "GIF",
-            "GPS",
-            "GPU",
-            "GUI",
-            "HTML",
-            "HTTP",
-            "HTTPS",
-            "IDE",
-            "IoT",
-            "IP",
-            "IT",
-            "JPEG",
-            "JPG",
-            "JS",
-            "JSON",
-            "LAN",
-            "LED",
-            "ML",
-            "NLP",
-            "OS",
-            "PC",
-            "PDF",
-            "PHP",
-            "PNG",
-            "RAM",
-            "REST",
-            "RGB",
-            "ROM",
-            "SaaS",
-            "SDK",
-            "SEO",
-            "SQL",
-            "SSH",
-            "SSL",
-            "TCP",
-            "TLS",
-            "UI",
-            "URL",
-            "USB",
-            "UX",
-            "VPN",
-            "VR",
-            "WAN",
-            "WiFi",
-            "WWW",
-            "XML",
-            "YAML",
-            "ZIP",
-            # Organizations & Institutions
-            "CIA",
-            "FBI",
-            "FDA",
-            "NATO",
-            "NASA",
-            "NOAA",
-            "UNESCO",
-            "UNICEF",
-            "UN",
-            "WHO",
-            "EU",
-            "EPA",
-            "FCC",
-            "CDC",
-            "MIT",
-            "UCLA",
-            "CUNY",
-            "NYU",
-            "USC",
-            "IEEE",
-            # Business & Finance
-            "CEO",
-            "CFO",
-            "CTO",
-            "COO",
-            "CPA",
-            "LLC",
-            "IPO",
-            "GDP",
-            "SEC",
-            "IRS",
-            "NYSE",
-            "ATM",
-            "ETF",
-            "ROI",
-            "KPI",
-            "B2B",
-            "B2C",
-            "HR",
-            "PR",
-            "RFP",
-            "SLA",
-            # Science & Medicine
-            "DNA",
-            "RNA",
-            "HIV",
-            "AIDS",
-            "MRI",
-            "CT",
-            "EEG",
-            "ECG",
-            "PCR",
-            "STEM",
-            "ADHD",
-            "OCD",
-            "PTSD",
-            "BMI",
-            "FDA",
-            "CDC",
-            "WHO",
-            # Education & Testing
-            "ACT",
-            "SAT",
-            "GPA",
-            "GRE",
-            "GMAT",
-            "TOEFL",
-            "IELTS",
-            "IQ",
-            "EQ",
-            "AP",
-            "IB",
-            "PhD",
-            "MBA",
-            "BA",
-            "BS",
-            "MA",
-            "MS",
-            "MD",
-            "JD",
-            "EdD",
-            "DDS",
-            # Media & Communication
-            "TV",
-            "DVD",
-            "CD",
-            "FM",
-            "AM",
-            "PM",
-            "BBC",
-            "CNN",
-            "ESPN",
-            "HBO",
-            "NBC",
-            "CBS",
-            "ABC",
-            "NPR",
-            "PBS",
-            "RSS",
-            "SMS",
-            "MMS",
-            "DM",
-            # Geography & Countries
-            "USA",
-            "UK",
-            "UAE",
-            "EU",
-            "USSR",
-            "NYC",
-            "LA",
-            "DC",
-            "SF",
-            # Military & Defense
-            "FBI",
-            "CIA",
-            "NSA",
-            "DOD",
-            "RAF",
-            "USAF",
-            "NATO",
-            "ICBM",
-            # Miscellaneous
-            "FAQ",
-            "DIY",
-            "ASAP",
-            "FYI",
-            "RSVP",
-            "TBD",
-            "TBA",
-            "ETA",
-            "OK",
-            "AWOL",
-            "PS",
-            "vs",
-            "VS",
-            "aka",
-            "AKA",
-            "etc",
-            "ETC",
-            "ie",
-            "IE",
-            "eg",
-            "EG",
-        }
 
         # Split by colon to handle subtitles
         parts = title.split(":")
@@ -259,7 +49,7 @@ class APAFormatter(BaseCitationFormatter):
                     continue
 
                 # Check if it's a known acronym
-                if clean_word.upper() in acronyms:
+                if clean_word.upper() in APA_ACRONYMS:
                     sentence_words.append(clean_word.upper() + punctuation)
                 # Check if it's a short all-caps acronym (2-5 letters, all uppercase)
                 elif (
@@ -285,16 +75,17 @@ class APAFormatter(BaseCitationFormatter):
         authors = self._get_authors_list()
         formatted_authors = self._format_authors(authors)
 
-        if self._citation.type == "book":
-            return self._format_book(formatted_authors)
-        elif self._citation.type == "article":
-            return self._format_article(formatted_authors)
-        elif self._citation.type == "website":
-            return self._format_website(formatted_authors)
-        elif self._citation.type == "report":
-            return self._format_report(formatted_authors)
-        else:
-            return f"Unsupported citation type: {self._citation.type}"
+        formatters = {
+            "book": self._format_book,
+            "article": self._format_article,
+            "website": self._format_website,
+            "report": self._format_report,
+        }
+
+        formatter = formatters.get(self._citation.type)
+        if formatter:
+            return formatter(formatted_authors)
+        return f"Unsupported citation type: {self._citation.type}"
 
     def _format_authors(self, authors: List[str]) -> str:
         """Format authors per APA 7th edition with ampersand before last author."""
@@ -339,9 +130,7 @@ class APAFormatter(BaseCitationFormatter):
         citation_parts = []
 
         if authors:
-            # Remove trailing period from authors if present
-            authors_clean = authors.rstrip(".")
-            citation_parts.append(authors_clean)
+            citation_parts.append(self._clean_authors(authors))
 
         # Handle year or n.d.
         if self._citation.year:
@@ -376,9 +165,7 @@ class APAFormatter(BaseCitationFormatter):
         citation_parts = []
 
         if authors:
-            # Remove trailing period from authors if present
-            authors_clean = authors.rstrip(".")
-            citation_parts.append(authors_clean)
+            citation_parts.append(self._clean_authors(authors))
 
         # Handle year or n.d.
         if self._citation.year:
@@ -429,9 +216,7 @@ class APAFormatter(BaseCitationFormatter):
         citation_parts = []
 
         if authors:
-            # Remove trailing period from authors if present
-            authors_clean = authors.rstrip(".")
-            citation_parts.append(authors_clean)
+            citation_parts.append(self._clean_authors(authors))
 
         # Handle year or n.d. for websites
         if self._citation.year:
@@ -466,9 +251,7 @@ class APAFormatter(BaseCitationFormatter):
         citation_parts = []
 
         if authors:
-            # Remove trailing period from authors if present
-            authors_clean = authors.rstrip(".")
-            citation_parts.append(authors_clean)
+            citation_parts.append(self._clean_authors(authors))
 
         # Handle year or n.d.
         if self._citation.year:

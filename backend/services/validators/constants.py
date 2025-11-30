@@ -1,5 +1,4 @@
 # backend/services/validators/constants.py
-"""Centralized configuration and constants for citation services."""
 
 SUPPORTED_FORMATS = ["apa", "mla"]
 DEFAULT_FORMAT = "apa"
