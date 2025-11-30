@@ -242,18 +242,18 @@ def test_project_citations_relationship_integration(
     citation1_data = {
         "type": "book",
         "title": "Book 1",
-        "authors": ["Author 1"],
+        "authors": ["Author One"],
         "year": 2021,
-        "publisher": "Publisher 1",
-        "place": "City 1",
+        "publisher": "Publisher One",
+        "place": "City One",
         "edition": 1,
     }
     citation2_data = {
         "type": "article",
         "title": "Article 1",
-        "authors": ["Author 2"],
+        "authors": ["Author Two"],
         "year": 2022,
-        "journal": "Journal 1",
+        "journal": "Journal One",
         "volume": 5,
         "issue": "2",
         "pages": "10-20",
@@ -406,7 +406,7 @@ def test_duplicate_detection_integration(citation_service, project_service):
         citation_service.create_citation(project.id, citation_data)
 
     assert exc_info.value.status_code == 409
-    assert "duplicate" in exc_info.value.detail.lower()
+    assert "identical citation already exists" in exc_info.value.detail.lower()
 
 
 def test_bibliography_generation_integration(
@@ -535,11 +535,12 @@ def test_concurrent_citation_creation_integration(
     project = project_service.create_project({"name": "Concurrent Test"})
 
     # Create 5 different citations
+    author_names = ["Author Alpha", "Author Beta", "Author Gamma", "Author Delta", "Author Epsilon"]
     for i in range(5):
         citation_data = {
             "type": "article",
             "title": f"Article {i}",
-            "authors": [f"Author {i}"],
+            "authors": [author_names[i]],
             "year": 2023,
             "journal": f"Journal {i}",
             "volume": i + 1,

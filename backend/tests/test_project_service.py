@@ -222,7 +222,7 @@ def test_delete_project_valid_case(project_service):
 
     # Delete project
     result = project_service.delete_project(project.id)
-    assert result == {"message": "Project deleted"}
+    assert result == {"message": "Project deleted successfully"}
 
 
 def test_delete_project_with_citations(project_service, db_session):
@@ -246,7 +246,7 @@ def test_delete_project_with_citations(project_service, db_session):
 
     # Delete project
     result = project_service.delete_project(project.id)
-    assert result == {"message": "Project deleted"}
+    assert result == {"message": "Project deleted successfully"}
 
     # Verify project is deleted
     with pytest.raises(HTTPException) as exc_info:

@@ -82,7 +82,7 @@ class ProjectService:
         success = self._project_repo.delete(project_id)
         if not success:
             raise HTTPException(status_code=500, detail="Failed to delete project")
-        return {"message": "Project deleted"}
+        return {"message": "Project deleted successfully"}
 
     def get_all_citations_by_project(self, project_id: int) -> List[Citation]:
         """Retrieve all citations for a project."""
