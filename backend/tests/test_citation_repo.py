@@ -1,28 +1,4 @@
 # backend/tests/test_citation_repo.py
-"""
-Test suite for CitationRepository class.
-
-This module contains comprehensive tests for the CitationRepository which handles
-database operations for citations. The tests cover all CRUD operations and complex
-scenarios including:
-
-- Citation creation with duplicate detection
-- Retrieving citations by ID
-- Deleting citations with various association scenarios
-- Updating citations with copy-on-write behavior for shared citations
-- Case-insensitive duplicate detection
-- Orphan citation cleanup
-- Project-citation association management
-
-Test organization:
-- CREATE tests: Verify citation creation and duplicate handling
-- GET BY ID tests: Test retrieval by primary key
-- DELETE tests: Cover single/multiple project associations and orphan cleanup
-- UPDATE tests: Test in-place updates, copy-on-write, and merge scenarios
-- EXTRA tests: Out-of-layer scenarios for robustness verification
-
-All tests use in-memory SQLite database for fast, isolated execution.
-"""
 import pytest
 from models.base import Base
 from models.project import Project

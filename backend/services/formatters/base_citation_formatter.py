@@ -56,6 +56,10 @@ class BaseCitationFormatter(ABC):
         except (json.JSONDecodeError, TypeError):
             return [self._citation.authors] if self._citation.authors else []
 
+    def _clean_authors(self, authors: str) -> str:
+        """Remove trailing period from formatted authors string."""
+        return authors.rstrip(".")
+
     def _normalize_edition(self, edition) -> str:
         """Normalize edition number to ordinal format (e.g., 2nd ed., 3rd ed.)."""
         # Validate edition type and convert if necessary

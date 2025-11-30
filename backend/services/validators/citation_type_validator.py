@@ -1,6 +1,4 @@
 # backend/services/validators/citation_type_validator.py
-"""Citation type validation logic following SRP."""
-
 from fastapi import HTTPException
 from services.validators.constants import CITATION_TYPES_CONFIG
 

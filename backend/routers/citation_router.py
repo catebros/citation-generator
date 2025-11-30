@@ -1,17 +1,3 @@
-# backend/routers/citation_router.py
-"""
-Citation management API router.
-
-This module provides REST API endpoints for citation CRUD operations:
-- Create new citations within projects
-- Retrieve citations by ID
-- Update existing citations
-- Delete citations from projects
-
-All endpoints handle JSON serialization of citation data including
-author lists and publication details. Dependency injection provides
-service layer access with automatic database session management.
-"""
 import json
 from typing import Any, Dict
 
@@ -21,9 +7,6 @@ from services.citation_service import CitationService
 
 router = APIRouter(tags=["Citations"])
 
-# ========== CITATION CRUD ENDPOINTS ==========
-
-
 @router.post("/projects/{project_id}/citations", status_code=status.HTTP_201_CREATED)
 def create_citation(
     project_id: int,
@@ -32,13 +15,6 @@ def create_citation(
 ) -> Dict[str, Any]:
     """
     Create a new citation in a project.
-
-    Args:
-        project_id: ID of the project to associate the citation with
-        citation_data: Citation creation data
-
-    Returns:
-        Created citation with assigned ID
     """
     try:
         citation = citation_service.create_citation(project_id, citation_data)
@@ -81,12 +57,6 @@ def get_citation(
 ) -> Dict[str, Any]:
     """
     Get a specific citation by ID.
-
-    Args:
-        citation_id: ID of the citation to retrieve
-
-    Returns:
-        Citation data
     """
     try:
         citation = citation_service.get_citation(citation_id)
@@ -134,14 +104,6 @@ def update_citation(
 ) -> Dict[str, Any]:
     """
     Update an existing citation.
-
-    Args:
-        project_id: ID of the associated project
-        citation_id: ID of the citation to update
-        citation_data: Updated citation data
-
-    Returns:
-        Updated citation
     """
     try:
         citation = citation_service.update_citation(
@@ -190,13 +152,6 @@ def delete_citation(
 ) -> Dict[str, str]:
     """
     Delete a citation.
-
-    Args:
-        project_id: ID of the associated project
-        citation_id: ID of the citation to delete
-
-    Returns:
-        Confirmation message
     """
     try:
         return citation_service.delete_citation(citation_id, project_id)

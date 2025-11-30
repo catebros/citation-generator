@@ -9,20 +9,20 @@ from sqlalchemy.orm import Session, sessionmaker
 
 load_dotenv()
 
-# PostgreSQL is the production database
-DATABASE_URL = os.getenv(
-    "DATABASE_URL",
-    "postgresql://postgres:postgres@localhost:5432/citation_generator_db",
-)
+# Get DATABASE_URL from environment - fail fast if not set
+DATABASE_URL = os.getenv("DATABASE_URL")
+if not DATABASE_URL:
+    raise ValueError(
+        "DATABASE_URL environment variable is not set.\n"
+        "Please set it in your .env file or environment.\n"
+        "Example: DATABASE_URL=postgresql://postgres:postgres@localhost:5432/citation_generator_db\n"
+        "For local development, copy .env.example to .env and configure your database URL."
+    )
 
 
 class DatabaseEngine:
     """
     Singleton class for managing the SQLAlchemy database engine.
-
-    Ensures only one engine instance exists throughout the application lifecycle,
-    which is the recommended pattern for SQLAlchemy engines as they are designed
-    to be shared and thread-safe.
     """
 
     _instance = None
@@ -31,9 +31,6 @@ class DatabaseEngine:
     def __new__(cls):
         """
         Creates or returns the existing singleton instance.
-
-        Returns:
-            DatabaseEngine: The singleton database engine instance
         """
         if cls._instance is None:
             cls._instance = super(DatabaseEngine, cls).__new__(cls)
@@ -42,9 +39,6 @@ class DatabaseEngine:
     def get_engine(self):
         """
         Get the SQLAlchemy engine, creating it if it doesn't exist.
-
-        Returns:
-            Engine: SQLAlchemy database engine configured for PostgreSQL
         """
         if self._engine is None:
             # PostgreSQL connection without special arguments
@@ -55,10 +49,6 @@ class DatabaseEngine:
     def reset_instance(cls):
         """
         Reset the singleton instance (useful for testing).
-
-        Note:
-            This method should only be used in test environments
-            to ensure clean state between tests.
         """
         # Dispose of the old engine if it exists
         if cls._instance is not None and cls._instance._engine is not None:
@@ -98,12 +88,6 @@ def get_db() -> Generator[Session, None, None]:
 
     Creates a new database session for each request and ensures proper cleanup.
     Uses generator pattern to guarantee session closure even if exceptions occur.
-
-    Yields:
-        Session: SQLAlchemy database session
-
-    Usage:
-        Used as a FastAPI dependency to inject database sessions into route handlers.
     """
     # Create new database session using current session factory
     session_factory = get_session_factory()

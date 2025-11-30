@@ -188,7 +188,7 @@ cat backup.sql | docker-compose exec -T postgres psql -U postgres -d citation_ge
 
 1. Open http://localhost:3001
 2. Login: `admin` / `admin`
-3. Navigate to **Dashboards** → **Citation Generator API Metrics**
+3. Navigate to **Dashboards** then **Citation Generator API Metrics**
 
 **Available Metrics**:
 - Request rate (requests/second)
@@ -280,9 +280,9 @@ ENVIRONMENT=development
 - Production uses Azure Application Insights for observability
 
 **Local Monitoring Only**:
-- ✅ Grafana dashboard for local development
-- ✅ Prometheus metrics collection
-- ✅ Pre-configured dashboards and queries
+- Grafana dashboard for local development
+- Prometheus metrics collection
+- Pre-configured dashboards and queries
 
 **Production Monitoring**:
 - Azure App Service metrics (built-in)
@@ -375,22 +375,3 @@ docker-compose up -d
 - [backend/alembic/env.py](backend/alembic/env.py) - Alembic environment setup
 - [monitoring/prometheus/prometheus.yml](monitoring/prometheus/prometheus.yml) - Prometheus config
 - [monitoring/grafana/](monitoring/grafana/) - Grafana dashboards and datasources
-
----
-
-## Contributing
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Make your changes
-4. Run tests (`docker-compose exec backend pytest tests/ -v`)
-5. Commit changes (`git commit -m 'Add amazing feature'`)
-6. Push to branch (`git push origin feature/amazing-feature`)
-7. Open a Pull Request
-
-## Support
-
-For issues and questions:
-- Check the [Troubleshooting](#troubleshooting) section
-- Review logs: `docker-compose logs -f`
-- Check health: `curl http://localhost:8000/health`
