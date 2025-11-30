@@ -58,9 +58,6 @@ app.include_router(citation_router.router)
 def read_root() -> Dict[str, Any]:
     """
     Main health check endpoint.
-
-    Returns:
-        Dict[str, Any]: API status information including message, status, and version
     """
     return {
         "message": "Citation Generator API is running",
@@ -73,13 +70,6 @@ def read_root() -> Dict[str, Any]:
 def health_check() -> Dict[str, Any]:
     """
     Detailed health check endpoint.
-
-    Provides comprehensive system health information including database
-    connectivity, supported formats, and available citation types.
-
-    Returns:
-        Dict[str, Any]: Detailed health status with database connection info,
-                       supported formats, and citation types
     """
     db_status = "connected"
     try:

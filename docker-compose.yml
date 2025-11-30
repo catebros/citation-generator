@@ -29,7 +29,7 @@ services:
       DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-citation_generator_db}
       ENVIRONMENT: ${ENVIRONMENT:-development}
     ports:
-      - "8000:8000"
+      - "8001:8000"
     depends_on:
       postgres:
         condition: service_healthy
@@ -43,6 +43,8 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+      args:
+        VITE_API_URL: http://localhost:8001
     container_name: citation_frontend
     ports:
       - "3000:3000"
@@ -50,11 +52,10 @@ services:
       - backend
     networks:
       - citation_network
-    volumes:
-      - ./frontend:/app
-      - /app/node_modules
-    environment:
-      - VITE_API_URL=http://backend:8000
+    # Comment out volumes to use production build instead of dev mode
+    # volumes:
+    #   - ./frontend:/app
+    #   - /app/node_modules
 
   prometheus:
     image: prom/prometheus:latest

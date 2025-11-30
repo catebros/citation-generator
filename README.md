@@ -2,7 +2,7 @@
 
 A full-stack web application for generating bibliographic citations in APA and MLA formats. Built with FastAPI (Python), React (TypeScript), PostgreSQL, and includes monitoring with Prometheus and Grafana.
 
-## Quick Start (Docker - Recommended)
+## Quick Start (Docker)
 
 ### Prerequisites
 - Docker and Docker Compose installed
@@ -22,8 +22,8 @@ docker-compose up -d
 
 # 4. Access the application
 # - Frontend:        http://localhost:3000
-# - Backend API:     http://localhost:8000
-# - API Docs:        http://localhost:8000/docs
+# - Backend API:     http://localhost:8001
+# - API Docs:        http://localhost:8001/docs
 # - Grafana:         http://localhost:3001 (admin/admin)
 # - Prometheus:      http://localhost:9090
 ```
@@ -42,19 +42,12 @@ docker-compose down -v
 
 ## Architecture
 
-### Tech Stack
-- **Backend**: FastAPI (Python 3.11), SQLAlchemy, Alembic
-- **Frontend**: React 18, TypeScript, Vite, TailwindCSS
-- **Database**: PostgreSQL 15
-- **Monitoring**: Prometheus, Grafana
-- **Deployment**: Docker, Azure App Service, GitHub Actions
-
 ### Services
 
 | Service | Port | Description |
 |---------|------|-------------|
 | Frontend | 3000 | React application |
-| Backend | 8000 | FastAPI REST API |
+| Backend | 8001 | FastAPI REST API |
 | PostgreSQL | 5432 | Database |
 | Prometheus | 9090 | Metrics collection |
 | Grafana | 3001 | Metrics visualization |
@@ -274,23 +267,6 @@ ENVIRONMENT=development
 
 **Important**: Grafana and Prometheus are **NOT deployed to production**. They run only locally for development monitoring.
 
-**Why?**
-- Azure App Service provides built-in monitoring and metrics
-- Cost optimization (no need for separate monitoring containers)
-- Production uses Azure Application Insights for observability
-
-**Local Monitoring Only**:
-- Grafana dashboard for local development
-- Prometheus metrics collection
-- Pre-configured dashboards and queries
-
-**Production Monitoring**:
-- Azure App Service metrics (built-in)
-- `/health` endpoint for health checks
-- `/metrics` endpoint still available for Prometheus-compatible scrapers
-
----
-
 ## API Documentation
 
 Once running, visit http://localhost:8000/docs for interactive API documentation.
@@ -305,73 +281,3 @@ Once running, visit http://localhost:8000/docs for interactive API documentation
 - `POST /citations/{id}/format` - Generate formatted citation (APA/MLA)
 
 ---
-
-## Troubleshooting
-
-### Port Already in Use
-
-```bash
-# Check what's using the port
-# Windows
-netstat -ano | findstr :5432
-
-# Stop conflicting service or change port in docker-compose.yml
-```
-
-### Database Connection Issues
-
-```bash
-# Check PostgreSQL is healthy
-docker-compose ps postgres
-
-# View logs
-docker-compose logs postgres
-
-# Test connection
-docker-compose exec postgres psql -U postgres -c "SELECT 1"
-```
-
-### Backend Not Starting
-
-```bash
-# View detailed logs
-docker-compose logs backend
-
-# Rebuild backend
-docker-compose build backend
-docker-compose up -d backend
-```
-
-### Grafana Dashboard Empty
-
-```bash
-# Generate some traffic first
-curl http://localhost:8000/health
-curl http://localhost:8000/projects
-
-# Check Prometheus targets (should show backend as UP)
-open http://localhost:9090/targets
-
-# Verify metrics endpoint
-curl http://localhost:8000/metrics
-```
-
-### Rebuild Everything
-
-```bash
-# Nuclear option: remove everything and rebuild
-docker-compose down -v
-docker-compose build --no-cache
-docker-compose up -d
-```
-
----
-
-## Configuration Files
-
-- [.env.example](.env.example) - Environment variables template
-- [docker-compose.yml](docker-compose.yml) - Local development services
-- [backend/alembic.ini](backend/alembic.ini) - Alembic configuration
-- [backend/alembic/env.py](backend/alembic/env.py) - Alembic environment setup
-- [monitoring/prometheus/prometheus.yml](monitoring/prometheus/prometheus.yml) - Prometheus config
-- [monitoring/grafana/](monitoring/grafana/) - Grafana dashboards and datasources
